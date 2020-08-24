@@ -17,5 +17,6 @@ runServer Env {..} = liftIO $ do
                            , jsCustomHTML               = Just index
                            }
         $ \win -> do
+              return win # set title "FF"
               content <- UI.p # set text "bob"
               void $ UI.getBody win # set children [content]
