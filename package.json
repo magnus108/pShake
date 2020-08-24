@@ -1,0 +1,10 @@
+{
+  "name": "photoPolysimy",
+  "main": "electron.js",
+  "dependencies": {
+    "electron": "^9.0.1",
+    "electron-packager": "^14.2.1",
+    "freeport": "^1.0.5",
+    "wait-on": "^5.0.1"
+  }
+}

@@ -1,0 +1,109 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           pShake
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/pShake#readme>
+homepage:       https://github.com/githubuser/pShake#readme
+bug-reports:    https://github.com/githubuser/pShake/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/pShake
+
+library
+  exposed-modules:
+      Lib
+      Lib.App
+      Lib.App.Env
+      Lib.App.Error
+      Lib.App.Monad
+      Lib.Config
+      Lib.Server
+      Prelude
+  other-modules:
+      Paths_pShake
+  hs-source-dirs:
+      src
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  build-depends:
+      aeson >=1.4 && <1.5
+    , async >=2.2 && <2.3
+    , base-noprelude >=4.12 && <5
+    , bytestring >=0.10 && <0.11
+    , conduit >=1.3 && <1.4
+    , conduit-extra >=1.3 && <1.4
+    , exceptions >=0.10 && <0.11
+    , filepath >=1.4 && <1.5
+    , microlens-mtl >=0.2 && <0.3
+    , mtl >=2.2 && <2.3
+    , relude >=0.7 && <0.8
+    , shake >=0.19 && <0.20
+    , threepenny-gui >=0.9 && <0.10
+    , unagi-chan >=0.4 && <0.5
+  default-language: Haskell2010
+
+executable pShake-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_pShake
+  hs-source-dirs:
+      app
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson >=1.4 && <1.5
+    , async >=2.2 && <2.3
+    , base-noprelude >=4.12 && <5
+    , bytestring >=0.10 && <0.11
+    , conduit >=1.3 && <1.4
+    , conduit-extra >=1.3 && <1.4
+    , exceptions >=0.10 && <0.11
+    , filepath >=1.4 && <1.5
+    , microlens-mtl >=0.2 && <0.3
+    , mtl >=2.2 && <2.3
+    , pShake
+    , relude >=0.7 && <0.8
+    , shake >=0.19 && <0.20
+    , threepenny-gui >=0.9 && <0.10
+    , unagi-chan >=0.4 && <0.5
+  default-language: Haskell2010
+
+test-suite pShake-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_pShake
+  hs-source-dirs:
+      test
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson >=1.4 && <1.5
+    , async >=2.2 && <2.3
+    , base-noprelude >=4.12 && <5
+    , bytestring >=0.10 && <0.11
+    , conduit >=1.3 && <1.4
+    , conduit-extra >=1.3 && <1.4
+    , exceptions >=0.10 && <0.11
+    , filepath >=1.4 && <1.5
+    , microlens-mtl >=0.2 && <0.3
+    , mtl >=2.2 && <2.3
+    , pShake
+    , relude >=0.7 && <0.8
+    , shake >=0.19 && <0.20
+    , threepenny-gui >=0.9 && <0.10
+    , unagi-chan >=0.4 && <0.5
+  default-language: Haskell2010
