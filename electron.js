@@ -8,7 +8,7 @@ const waitOn = require('wait-on');
  // Time to wait for Threepenny server, milliseconds
 const timeout = 10000;
 // Relative path to the Threepenny binary.
-const relBin = './.build/photoPolysemy-exe'
+const relBin = './.build/pShake-exe'
 // Additional arguments to pass to the Threepenny binary.
 const binArgs = [__dirname];
 
