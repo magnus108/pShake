@@ -31,13 +31,19 @@ library
       Lib.App.Error
       Lib.App.Monad
       Lib.Config
+      Lib.Message
+      Lib.Model
+      Lib.Model.Photographer
       Lib.Server
+      Lib.Watchers
       Prelude
+      Utils.Comonad
+      Utils.ListZipper
   other-modules:
       Paths_pShake
   hs-source-dirs:
       src
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
   build-depends:
       aeson >=1.4 && <1.5
     , async >=2.2 && <2.3
@@ -47,12 +53,16 @@ library
     , conduit-extra >=1.3 && <1.4
     , exceptions >=0.10 && <0.11
     , filepath >=1.4 && <1.5
+    , fsnotify >=0.3 && <0.4
+    , lens >=4.18 && <4.19
     , microlens-mtl >=0.2 && <0.3
     , mtl >=2.2 && <2.3
     , relude >=0.7 && <0.8
     , shake >=0.19 && <0.20
     , threepenny-gui >=0.9 && <0.10
+    , time >=1.9.3 && <1.10
     , unagi-chan >=0.4 && <0.5
+    , unordered-containers >=0.2 && <0.3
   default-language: Haskell2010
 
 executable pShake-exe
@@ -61,7 +71,7 @@ executable pShake-exe
       Paths_pShake
   hs-source-dirs:
       app
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5
@@ -72,13 +82,17 @@ executable pShake-exe
     , conduit-extra >=1.3 && <1.4
     , exceptions >=0.10 && <0.11
     , filepath >=1.4 && <1.5
+    , fsnotify >=0.3 && <0.4
+    , lens >=4.18 && <4.19
     , microlens-mtl >=0.2 && <0.3
     , mtl >=2.2 && <2.3
     , pShake
     , relude >=0.7 && <0.8
     , shake >=0.19 && <0.20
     , threepenny-gui >=0.9 && <0.10
+    , time >=1.9.3 && <1.10
     , unagi-chan >=0.4 && <0.5
+    , unordered-containers >=0.2 && <0.3
   default-language: Haskell2010
 
 test-suite pShake-test
@@ -88,7 +102,7 @@ test-suite pShake-test
       Paths_pShake
   hs-source-dirs:
       test
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DerivingStrategies DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs
+  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5
@@ -99,11 +113,15 @@ test-suite pShake-test
     , conduit-extra >=1.3 && <1.4
     , exceptions >=0.10 && <0.11
     , filepath >=1.4 && <1.5
+    , fsnotify >=0.3 && <0.4
+    , lens >=4.18 && <4.19
     , microlens-mtl >=0.2 && <0.3
     , mtl >=2.2 && <2.3
     , pShake
     , relude >=0.7 && <0.8
     , shake >=0.19 && <0.20
     , threepenny-gui >=0.9 && <0.10
+    , time >=1.9.3 && <1.10
     , unagi-chan >=0.4 && <0.5
+    , unordered-containers >=0.2 && <0.3
   default-language: Haskell2010

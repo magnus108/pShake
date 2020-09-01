@@ -19,32 +19,35 @@ import           Lib.App.Error                  ( Error
                                                 )
 import           Control.Monad.Catch            ( MonadThrow, MonadCatch, catch )
 
-newtype AppT msg m a = AppT
-    { unAppT :: ReaderT (Env msg) m a
+
+type AppEnv m msg = Env (AppT m msg) msg
+
+newtype AppT m msg a = AppT
+    { unAppT :: ReaderT (AppEnv m msg) m a
     } deriving ( Functor
                , Applicative
                , Monad
                , MonadIO
-               , MonadReader (Env msg)
+               , MonadReader (AppEnv m msg)
                , MonadCatch
                , MonadThrow
                )
 
-instance (MonadCatch m, MonadIO m) => MonadError Error (AppT msg m) where
-    throwError :: Error -> AppT msg m a
+instance (MonadCatch m, MonadIO m) => MonadError Error (AppT m msg) where
+    throwError :: Error -> AppT m msg a
     throwError = liftIO . throwIO . Exception
     {-# INLINE throwError #-}
 
-    catchError :: AppT msg m a -> (Error -> AppT msg m a) -> AppT msg m a
+    catchError :: AppT m msg a -> (Error -> AppT m msg a) -> AppT m msg a
     catchError action handler = AppT $ ReaderT $ \env -> do
         let ioAction = runAppT env action
         ioAction `catch` \e -> runAppT env $ handler $ unException e
     {-# INLINE catchError #-}
 
 
-runAppAsIO :: Env msg -> AppT msg IO a -> IO (Either Error a)
+runAppAsIO :: AppEnv IO msg -> AppT IO msg a -> IO (Either Error a)
 runAppAsIO env = firstF unException . try . runAppT env
 
 
-runAppT :: Env msg -> AppT msg m a -> m a
+runAppT :: AppEnv m msg -> AppT m msg a -> m a
 runAppT env = usingReaderT env . unAppT
