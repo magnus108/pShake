@@ -3,7 +3,10 @@ module Lib.Watchers
     )
 where
 
-import           Lib.App                        ( Env(..) )
+import           Lib.App                        ( Env(..)
+                                                , unMPhotographersFile
+                                                , unInChan
+                                                )
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 import qualified System.FSNotify               as FS
@@ -11,15 +14,15 @@ import qualified Lib.Message                   as Message
 import qualified System.FilePath               as FP
 
 
-photographersFile :: MonadIO m => Env m Message.Message -> m FS.StopListening
+photographersFile :: Env m -> IO FS.StopListening
 photographersFile Env {..} = do
-    file <- readMVar mPhotographersFile
+    file <- readMVar $ unMPhotographersFile mPhotographersFile
     stop <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
         (\e -> void $ do
             print e
-            Chan.writeChan inChan Message.ReadPhotographers
+            Chan.writeChan (unInChan inChan) Message.ReadPhotographers
         )
     return stop

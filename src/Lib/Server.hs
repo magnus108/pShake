@@ -1,5 +1,5 @@
 module Lib.Server
-    ( runServer
+    ( setup
     )
 where
 
@@ -9,7 +9,19 @@ import qualified Lib.Watchers                  as Watchers
 import           Control.Concurrent             ( forkIO
                                                 , killThread
                                                 )
-import           Lib.App                        ( Env(..) )
+import           Lib.App                        ( AppEnv
+                                                , Env(..)
+                                                , grab
+                                                , obtain
+                                                , MStartMap(..)
+                                                , OutChan(..)
+                                                , unMPhotographersFile
+                                                , unMStopMap
+                                                , unHPhotographers
+                                                , unMStartMap
+                                                , unOutChan
+                                                , unInChan
+                                                )
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -18,63 +30,67 @@ import qualified Control.Concurrent.Chan.Unagi.Bounded
 import qualified Lib.Model.Photographer        as Photographer
 
 
-runServer :: MonadIO m => Env IO Message.Message -> m ()
-runServer env@Env {..} = liftIO $ do
-    startGUI defaultConfig { jsWindowReloadOnDisconnect = False
-                           , jsPort                     = Just port
-                           , jsStatic                   = Just static
-                           , jsCustomHTML               = Just index
-                           }
-        $ setup env
-
-
-setup :: Env IO Message.Message -> Window -> UI ()
-setup env@Env {..} win = do
+setup :: AppEnv -> Window -> UI ()
+setup env win = do
     _       <- return win # set title "FF"
     content <- UI.p # set text "bob"
     void $ UI.getBody win # set children [content]
 
-    startMap <- takeMVar mStartMap
+    {-
+    mStartMap <- grab @MStartMap
+    startMap <- takeMVar $ unMStartMap mStartMap
     let key         = "photographers"
     let value       = Watchers.photographersFile
     let newStartMap = HashMap.insert key value startMap
     _               <- putMVar mStartMap newStartMap
+    -}
+
+    return ()
+    {-
+
 
     messageReceiver <- liftIO $ forkIO $ receiveMessages env win
 
     --testing
-    liftIO $ Chan.writeChan inChan Message.StartPhotograpers
+    liftIO $ Chan.writeChan (unInChan inChan) Message.StartPhotograpers
 
     UI.on UI.disconnect win $ const $ liftIO $ do
+        --HashMap ti list and kill all
         killThread messageReceiver
 
 
-receiveMessages :: Env IO Message.Message -> Window -> IO ()
-receiveMessages env@Env {..} window = do
-    messages <- Chan.getChanContents outChan
+-}
+receiveMessages :: AppEnv -> Window -> IO ()
+receiveMessages env window = do
+    outChan <- grab @OutChan
+--    messages <- Chan.getChanContents (unOutChan outChan)
+    return ()
+        {-
     forM_ messages $ \x -> do
         case x of
             Message.StopPhotographers -> do
                 return ()
             Message.StartPhotograpers -> do
-                startMap <- takeMVar mStartMap
-                stopMap  <- takeMVar mStopMap
+                startMap <- takeMVar $ unMStartMap mStartMap
+                stopMap  <- takeMVar $ unMStopMap mStopMap
                 let key   = "photographers"
                 let watch = startMap HashMap.! key
                 stop <- watch env
                 let newStopMap = HashMap.insert key stop stopMap
-                _ <- putMVar mStartMap startMap
-                _ <- putMVar mStopMap newStopMap
+                _ <- putMVar (unMStartMap mStartMap) startMap
+                _ <- putMVar (unMStopMap mStopMap) newStopMap
                 return ()
 
             Message.ReadPhotographers -> do
-                photographersFile <- takeMVar mPhotographersFile
+                photographersFile <- takeMVar
+                    $ unMPhotographersFile mPhotographersFile
                 photographers <- Photographer.getPhotographers photographersFile
-                _ <- putMVar mPhotographersFile photographersFile
-                hPhotographees photographers
+                _             <- putMVar (unMPhotographersFile mPhotographersFile) photographersFile
+                _ <- (unHPhotographers hPhotographers) photographers
 
                 runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
 
                 print photographers
                 return ()
+                -}

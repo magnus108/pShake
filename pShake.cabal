@@ -43,7 +43,7 @@ library
       Paths_pShake
   hs-source-dirs:
       src
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
+  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   build-depends:
       aeson >=1.4 && <1.5
     , async >=2.2 && <2.3
@@ -71,7 +71,7 @@ executable pShake-exe
       Paths_pShake
   hs-source-dirs:
       app
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
+  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5
@@ -102,7 +102,7 @@ test-suite pShake-test
       Paths_pShake
   hs-source-dirs:
       test
-  default-extensions: LambdaCase RecordWildCards OverloadedStrings DeriveGeneric DeriveFunctor DerivingStrategies DerivingVia GeneralizedNewtypeDeriving MultiParamTypeClasses InstanceSigs DerivingStrategies
+  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5

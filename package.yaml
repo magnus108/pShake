@@ -40,17 +40,25 @@ dependencies:
 - unordered-containers >= 0.2 && < 0.3
 
 default-extensions:
-- LambdaCase
-- RecordWildCards
-- OverloadedStrings
+- BangPatterns
+- ConstraintKinds
+- DataKinds
 - DeriveGeneric
-- DeriveFunctor
 - DerivingStrategies
-- DerivingVia
+- FlexibleContexts
+- FlexibleInstances
 - GeneralizedNewtypeDeriving
-- MultiParamTypeClasses
 - InstanceSigs
-- DerivingStrategies
+- KindSignatures
+- LambdaCase
+- MultiParamTypeClasses
+- OverloadedStrings
+- OverloadedLabels
+- RecordWildCards
+- ScopedTypeVariables
+- TypeApplications
+- TypeFamilies
+- TypeOperators
 
 
 library:
