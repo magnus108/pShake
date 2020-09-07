@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Lib.App.Env
     ( Env(..)
+    , Has(..)
+    , WatchManager(..)
     , StartMap
     , StopMap
     , MStopMap(..)
@@ -11,7 +13,6 @@ module Lib.App.Env
     , HPhotographers(..)
     , MPhotographersFile(..)
     , grab
-    , obtain
     )
 where
 
@@ -25,8 +26,7 @@ import qualified Lib.Message                   as Message
 
 
 type StopMap = HashMap.HashMap String FS.StopListening
-type StartMap m = HashMap.HashMap String (Env m -> m FS.StopListening)
-
+type StartMap m = HashMap.HashMap String (m FS.StopListening)
 
 data Env (m :: Type -> Type) = Env
     { inChan :: InChan
@@ -89,11 +89,12 @@ data Env (m :: Type -> Type) = Env
     , eBuild :: !(Reactive.Event ())
     , hBuild :: !(Reactive.Handler ())
 
-    , watchManager :: !FS.WatchManager
+    , watchManager :: WatchManager
     }
 
-newtype MStartMap m = MStartMap { unMStartMap ::  (MVar (StartMap m)) }
-newtype MStopMap = MStopMap { unMStopMap ::  MVar StopMap }
+newtype MStartMap m = MStartMap { unMStartMap :: MVar (StartMap m) }
+
+newtype MStopMap = MStopMap { unMStopMap ::  MVar (HashMap.HashMap String FS.StopListening) }
 
 newtype InChan = InChan { unInChan:: Chan.InChan Message.Message }
 newtype OutChan = OutChan { unOutChan :: Chan.OutChan Message.Message }
@@ -101,8 +102,14 @@ newtype OutChan = OutChan { unOutChan :: Chan.OutChan Message.Message }
 newtype MPhotographersFile = MPhotographersFile { unMPhotographersFile :: MVar FilePath }
 newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler Model.Photographers}
 
+newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
+
+
 class Has field env where
     obtain :: env -> field
+
+instance Has WatchManager               (Env m) where
+    obtain = watchManager
 
 instance Has (MStartMap m)               (Env m) where
     obtain = mStartMap

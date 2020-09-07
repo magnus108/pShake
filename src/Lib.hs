@@ -84,12 +84,12 @@ mkAppEnv port Config.Config {..} = do
     (ePhotographees     , hPhotographees     ) <- Reactive.newEvent
     (eBuild             , hBuild             ) <- Reactive.newEvent
 
-    watchManager                               <- FS.startManagerConf
+    watchManager'                               <- FS.startManagerConf
         (FS.defaultConfig
             { FS.confDebounce = FS.Debounce (Clock.secondsToNominalDiffTime 0.2)
             }
         )
-
+    let watchManager = App.WatchManager watchManager'
     pure Env { .. }
 
 

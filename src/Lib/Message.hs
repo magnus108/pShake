@@ -7,3 +7,4 @@ data Message
     = ReadPhotographers
     | StartPhotograpers
     | StopPhotographers
+        deriving Show
