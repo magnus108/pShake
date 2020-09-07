@@ -13,13 +13,9 @@ import qualified Lib.Watchers                  as Watchers
 import           Control.Concurrent             ( forkIO
                                                 , killThread
                                                 )
-import           Lib.App                        ( AppEnv
-                                                , runAppAsIO
-                                                , runApp
-                                                , Env(..)
-                                                , StopMap
+import           Lib.App                        ( runApp
+                                                , AppEnv
                                                 , grab
-                                                , obtain
                                                 , Has(..)
                                                 , HPhotographers(..)
                                                 , MPhotographersFile(..)
@@ -68,8 +64,8 @@ setupStartMap = do
     mStartMap <- unMStartMap <$> grab @(MStartMap m)
     startMap <- takeMVar mStartMap
     let key         = "photographers"
-    let value       = Watchers.photographersFile
-    let newStartMap = HashMap.insert key value startMap
+    let watcher       = Watchers.photographersFile
+    let newStartMap = HashMap.insert key watcher startMap
     putMVar mStartMap newStartMap
 
 
@@ -85,7 +81,7 @@ receiveMessages window = do
     messages <- liftIO $ Chan.getChanContents (unOutChan outChan)
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
     forM_ messages $ \x -> do
-        traceShowM x
+    ---    traceShowM x
         case x of
             Message.StopPhotographers -> do
                 return ()

@@ -3,24 +3,17 @@ module Lib.Watchers
     )
 where
 
-import           Lib.App                        ( AppEnv
-                                                , Env(..)
-                                                , StopMap
-                                                , grab
-                                                , obtain
+import           Lib.App                        ( grab
                                                 , Has(..)
-                                                , MStartMap(..)
-                                                , MStopMap(..)
-                                                , OutChan(..)
-                                                , InChan(..)
-                                                , WatchManager(..)
+                                                , InChan
+                                                , OutChan
+                                                , WatchManager
                                                 , MPhotographersFile
+                                                , MStopMap
+                                                , MStartMap
                                                 , unMPhotographersFile
-                                                , unMStopMap
-                                                , unHPhotographers
-                                                , unMStartMap
-                                                , unOutChan
                                                 , unInChan
+                                                , unWatchManager
                                                 )
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan

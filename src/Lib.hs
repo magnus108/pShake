@@ -3,32 +3,19 @@ module Lib
     )
 where
 
-import qualified Data.HashMap.Strict           as HashMap
-import qualified Lib.Message                   as Message
-import qualified Lib.Watchers                  as Watchers
-import           Control.Concurrent             ( forkIO
-                                                , killThread
-                                                )
 import           Lib.App                        ( AppEnv
                                                 , Env(..)
                                                 )
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
-import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
-import qualified Lib.Model.Photographer        as Photographer
-import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Config                    as Config
 
-import qualified Control.Concurrent.Chan.Unagi.Bounded
-                                               as Chan
 import qualified Reactive.Threepenny           as Reactive
 import qualified System.FSNotify               as FS
 import qualified Data.Time.Clock               as Clock
-import qualified Lib.Model                     as Model
-import qualified Lib.Message                   as Message
 
 
 import           Lib.Config                     ( loadConfig )
