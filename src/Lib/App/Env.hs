@@ -87,6 +87,7 @@ data Env (m :: Type -> Type) = Env
     , eBuild :: !(Reactive.Event ())
     , hBuild :: !(Reactive.Handler ())
 
+    , bPhotographers :: !(Reactive.Behavior (Model.Data String Model.Photographers))
     , watchManager :: WatchManager
     }
 

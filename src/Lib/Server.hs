@@ -1,3 +1,4 @@
+{-# LANGUAGE RecursiveDo #-}
 module Lib.Server
     ( setup
     )
@@ -32,6 +33,7 @@ import           Lib.App                        ( runApp
                                                 , unOutChan
                                                 , unInChan
                                                 )
+import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -41,18 +43,50 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model                     as Model
 
 
+data PhotographerEntry = PhotographerEntry
+    { _elementTE :: !Element
+    , _photographersTE    :: !(Tidings (Model.Data String Photographer.Photographers))
+    }
+
+instance Widget PhotographerEntry where
+    getElement = _elementTE
+
+entry
+    :: Behavior (Model.Data String Photographer.Photographers)
+    -> UI PhotographerEntry
+entry bValue = do
+    content <- UI.div
+
+--   bEditing <- stepper False $ and <$>
+--        unions [True <$ UI.focus input, False <$ UI.blur input]
+
+    window  <- askWindow
+    liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
+        case s of
+            x ->
+                --editing <- liftIO $ currentValue bEditing
+                --when (not editing) $ void $ element input # set value s
+                void $ element content # set text "bobo"
+
+    let _elementTE       = content
+        _photographersTE = tidings bValue $ UI.never
+    return PhotographerEntry { .. }
+
+
+
 setup :: AppEnv -> Window -> UI ()
-setup env@Env {..} win = do
+setup env@Env {..} win = mdo
     _       <- return win # set title "FF"
     content <- UI.p # set text "bob"
-    void $ UI.getBody win # set children [content]
+    elem <- entry bPhotographers
 
-    _               <- UI.stepper Photographer.initalState ePhotographers
+    void $ UI.getBody win #+ [element elem]
 
     _               <- liftIO $ runApp env setupStartMap
     _               <- liftIO $ runApp env startStartMap
 
     messageReceiver <- liftIO $ forkIO $ runApp env (receiveMessages win)
+
 
     UI.on UI.disconnect win $ const $ liftIO $ do
         --HashMap ti list and kill all

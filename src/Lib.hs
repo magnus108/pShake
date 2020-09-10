@@ -6,6 +6,7 @@ where
 import           Lib.App                        ( AppEnv
                                                 , Env(..)
                                                 )
+import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -71,12 +72,15 @@ mkAppEnv port Config.Config {..} = do
     (ePhotographees     , hPhotographees     ) <- Reactive.newEvent
     (eBuild             , hBuild             ) <- Reactive.newEvent
 
-    watchManager'                               <- FS.startManagerConf
+    watchManager'                              <- FS.startManagerConf
         (FS.defaultConfig
             { FS.confDebounce = FS.Debounce (Clock.secondsToNominalDiffTime 0.2)
             }
         )
     let watchManager = App.WatchManager watchManager'
+
+    bPhotographers <- Reactive.stepper Photographer.initalState ePhotographers
+
     pure Env { .. }
 
 
