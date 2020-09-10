@@ -41,6 +41,7 @@ dependencies:
 
 default-extensions:
 - BangPatterns
+- DeriveFunctor
 - ConstraintKinds
 - DataKinds
 - DeriveGeneric

@@ -3,7 +3,7 @@ module Lib.Server
     )
 where
 
-import Control.Monad.Catch (MonadThrow)
+import           Control.Monad.Catch            ( MonadThrow )
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Message                   as Message
 
@@ -16,6 +16,7 @@ import           Control.Concurrent             ( forkIO
 import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , grab
+                                                , Env(..)
                                                 , Has(..)
                                                 , HPhotographers(..)
                                                 , MPhotographersFile(..)
@@ -37,16 +38,19 @@ import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
 import qualified Lib.Model.Photographer        as Photographer
+import qualified Lib.Model                     as Model
 
 
 setup :: AppEnv -> Window -> UI ()
-setup env win = do
+setup env@Env {..} win = do
     _       <- return win # set title "FF"
     content <- UI.p # set text "bob"
     void $ UI.getBody win # set children [content]
 
-    _ <- liftIO $ runApp env setupStartMap
-    _ <- liftIO $ runApp env startStartMap
+    _               <- UI.stepper Photographer.initalState ePhotographers
+
+    _               <- liftIO $ runApp env setupStartMap
+    _               <- liftIO $ runApp env startStartMap
 
     messageReceiver <- liftIO $ forkIO $ runApp env (receiveMessages win)
 
@@ -56,29 +60,40 @@ setup env win = do
         return ()
 
 
-type WithChan r m = (MonadThrow m, MonadReader r m, Has WatchManager r, Has HPhotographers r, Has MPhotographersFile r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
+type WithChan r m
+    = ( MonadThrow m
+      , MonadReader r m
+      , Has WatchManager r
+      , Has HPhotographers r
+      , Has MPhotographersFile r
+      , Has (MStartMap m) r
+      , Has MStopMap r
+      , Has OutChan r
+      , Has InChan r
+      , MonadIO m
+      )
 
 
-setupStartMap :: forall r m. WithChan r m => m ()
+setupStartMap :: forall  r m . WithChan r m => m ()
 setupStartMap = do
     mStartMap <- unMStartMap <$> grab @(MStartMap m)
-    startMap <- takeMVar mStartMap
+    startMap  <- takeMVar mStartMap
     let key         = "photographers"
-    let watcher       = Watchers.photographersFile
+    let watcher     = Watchers.photographersFile
     let newStartMap = HashMap.insert key watcher startMap
     putMVar mStartMap newStartMap
 
 
-startStartMap :: forall r m. WithChan r m => m ()
+startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
     inChan <- unInChan <$> grab @InChan
     liftIO $ Chan.writeChan inChan Message.StartPhotograpers
 
 
-receiveMessages :: forall r m. WithChan r m => Window -> m ()
+receiveMessages :: forall  r m . WithChan r m => Window -> m ()
 receiveMessages window = do
-    outChan <- grab @OutChan
-    messages <- liftIO $ Chan.getChanContents (unOutChan outChan)
+    outChan        <- grab @OutChan
+    messages       <- liftIO $ Chan.getChanContents (unOutChan outChan)
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
     forM_ messages $ \x -> do
     ---    traceShowM x
@@ -87,9 +102,9 @@ receiveMessages window = do
                 return ()
             Message.StartPhotograpers -> do
                 mStartMap <- unMStartMap <$> grab @(MStartMap m)
-                mStopMap <- unMStopMap <$> grab @MStopMap
-                stopMap <- takeMVar mStopMap
-                startMap <- takeMVar mStartMap
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
                 let key   = "photographers"
                 let watch = startMap HashMap.! key
                 stop <- watch
@@ -99,11 +114,12 @@ receiveMessages window = do
                 return ()
 
             Message.ReadPhotographers -> do
-                mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+                mPhotographersFile <-
+                    unMPhotographersFile <$> grab @MPhotographersFile
                 photographersFile <- takeMVar mPhotographersFile
                 photographers <- Photographer.getPhotographers photographersFile
-                _             <- putMVar mPhotographersFile photographersFile
-                _ <- liftIO $ hPhotographers photographers
+                _ <- putMVar mPhotographersFile photographersFile
+                _ <- liftIO $ hPhotographers $ Model.Data photographers
                 _ <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()

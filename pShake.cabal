@@ -33,6 +33,7 @@ library
       Lib.Config
       Lib.Message
       Lib.Model
+      Lib.Model.Data
       Lib.Model.Photographer
       Lib.Server
       Lib.Watchers
@@ -43,7 +44,7 @@ library
       Paths_pShake
   hs-source-dirs:
       src
-  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
+  default-extensions: BangPatterns DeriveFunctor ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   build-depends:
       aeson >=1.4 && <1.5
     , async >=2.2 && <2.3
@@ -71,7 +72,7 @@ executable pShake-exe
       Paths_pShake
   hs-source-dirs:
       app
-  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
+  default-extensions: BangPatterns DeriveFunctor ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5
@@ -102,7 +103,7 @@ test-suite pShake-test
       Paths_pShake
   hs-source-dirs:
       test
-  default-extensions: BangPatterns ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
+  default-extensions: BangPatterns DeriveFunctor ConstraintKinds DataKinds DeriveGeneric DerivingStrategies FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase MultiParamTypeClasses OverloadedStrings OverloadedLabels RecordWildCards ScopedTypeVariables TypeApplications TypeFamilies TypeOperators
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson >=1.4 && <1.5

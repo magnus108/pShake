@@ -7,9 +7,11 @@ module Lib.Model.Photographer
     , getPhotographers
     , name
     , tid
+    , initalState
     )
 where
 
+import           Lib.Model.Data
 import           Utils.ListZipper
 import           Control.Lens
 
@@ -39,3 +41,7 @@ newtype Photographers = Photographers { unPhotographers :: ListZipper Photograph
 
 getPhotographers :: (MonadIO m, MonadThrow m) => FilePath -> m Photographers
 getPhotographers = readJSONFile
+
+
+initalState :: Data String Photographers
+initalState = NotAsked

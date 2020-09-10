@@ -1,5 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes  #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 module Lib.App.Env
     ( Env(..)
     , Has(..)
@@ -72,7 +70,7 @@ data Env (m :: Type -> Type) = Env
     , hConfigDump :: !(Reactive.Handler ())
     , eTabs :: !(Reactive.Event ())
     , hTab :: !(Reactive.Handler ())
-    , ePhotographers :: !(Reactive.Event Model.Photographers)
+    , ePhotographers :: !(Reactive.Event (Model.Data String Model.Photographers))
     , hPhotographers :: HPhotographers
     , eCameras :: !(Reactive.Event ())
     , hCameras :: !(Reactive.Handler ())
@@ -100,7 +98,7 @@ newtype InChan = InChan { unInChan:: Chan.InChan Message.Message }
 newtype OutChan = OutChan { unOutChan :: Chan.OutChan Message.Message }
 
 newtype MPhotographersFile = MPhotographersFile { unMPhotographersFile :: MVar FilePath }
-newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler Model.Photographers}
+newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler (Model.Data String Model.Photographers) }
 
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
 
