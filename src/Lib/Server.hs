@@ -9,7 +9,8 @@ import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Message                   as Message
 import Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
-import           Control.Lens                   ( (^.) )
+import           Control.Lens                   ( (^.), (.~), over)
+import qualified Control.Lens as Lens
 
 
 import qualified Lib.Watchers                  as Watchers
@@ -47,7 +48,7 @@ import qualified Lib.Model                     as Model
 
 data PhotographerEntry = PhotographerEntry
     { _elementTE :: !Element
-    , _photographersTE    :: !(Tidings (Model.Data String Photographer.Photographers))
+    , _photographersTE    :: !(Event Photographer.Photographers)
     }
 
 instance Widget PhotographerEntry where
@@ -58,20 +59,41 @@ entry
     -> UI PhotographerEntry
 entry bValue = do
     content <- UI.div
+    input <- UI.input
+    bEditing <- stepper False $ and <$>
+        unions [True <$ UI.focus input, False <$ UI.blur input]
 
+    item <- Reactive.currentValue bValue
+    case item of
+        Model.Data item -> do
+            void $ element input # set value (extract (Photographer.unPhotographers item) ^. Photographer.name)
+        _ -> return ()
 
     window  <- askWindow
+
     liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
         case s of
             Model.NotAsked     -> void $ element content # set text "Not Asked"
             Model.Loading      -> void $ element content # set text "bobo"
             Model.Failure e    -> void $ element content # set text (show e)
             Model.Data    item -> do
-                void $ element content # set text "bobo"
+                editing <- liftIO $ currentValue bEditing
+                when (not editing) $ void $ do
+                    element input # set value (extract (Photographer.unPhotographers item) ^. Photographer.name)
+                    element content # set children [] #+ [element input]
 
     let _elementTE       = content
-        _photographersTE = tidings bValue $ UI.never
+        _photographersTE = filterJust $ setName <$> (Model.toJust <$> bValue) <@> UI.valueChange input
+
     return PhotographerEntry { .. }
+
+setName :: Maybe Photographer.Photographers -> String -> Maybe Photographer.Photographers
+setName photographers' name = case photographers' of
+                               Nothing -> Nothing
+                               Just photographers ->
+                                    case (Photographer.unPhotographers photographers) of
+                                        ListZipper.ListZipper ls x rs -> 
+                                            Just $ Photographer.Photographers $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
 
 -----------------------------------------------------------------------------
 
@@ -142,6 +164,10 @@ setup env@Env {..} win = mdo
     elem    <- entry bPhotographers
     elem2   <- listBox bPhotographers
 
+    let eElem = _photographersTE elem
+    _ <- onEvent eElem $ \item -> do
+            liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.WritePhographers item)
+
     let eElem2 = filterJust $ rumors $ _photographersPB elem2
     _ <- onEvent eElem2 $ \item -> do
             liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.WritePhographers item)
@@ -202,7 +228,7 @@ receiveMessages window = do
     messages       <- liftIO $ Chan.getChanContents (unOutChan outChan)
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
     forM_ messages $ \x -> do
-    ---    traceShowM x
+        traceShowM x
         case x of
             Message.StopPhotographers -> do
                 return ()

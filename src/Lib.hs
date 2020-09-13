@@ -74,7 +74,7 @@ mkAppEnv port Config.Config {..} = do
 
     watchManager'                              <- FS.startManagerConf
         (FS.defaultConfig
-            { FS.confDebounce = FS.Debounce (Clock.secondsToNominalDiffTime 0.2)
+            { FS.confDebounce = FS.Debounce (Clock.secondsToNominalDiffTime 0.001)
             }
         )
     let watchManager = App.WatchManager watchManager'
