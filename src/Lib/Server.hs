@@ -7,7 +7,9 @@ where
 import           Control.Monad.Catch            ( MonadThrow )
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Message                   as Message
-
+import Utils.Comonad
+import qualified Utils.ListZipper              as ListZipper
+import           Control.Lens                   ( (^.) )
 
 
 import qualified Lib.Watchers                  as Watchers
@@ -57,33 +59,98 @@ entry
 entry bValue = do
     content <- UI.div
 
---   bEditing <- stepper False $ and <$>
---        unions [True <$ UI.focus input, False <$ UI.blur input]
 
     window  <- askWindow
     liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
         case s of
-            x ->
-                --editing <- liftIO $ currentValue bEditing
-                --when (not editing) $ void $ element input # set value s
+            Model.NotAsked     -> void $ element content # set text "Not Asked"
+            Model.Loading      -> void $ element content # set text "bobo"
+            Model.Failure e    -> void $ element content # set text (show e)
+            Model.Data    item -> do
                 void $ element content # set text "bobo"
 
     let _elementTE       = content
         _photographersTE = tidings bValue $ UI.never
     return PhotographerEntry { .. }
 
+-----------------------------------------------------------------------------
 
+
+data PhotographersBox a = PhotographersBox
+    { _elementPB   :: Element
+    , _photographersPB :: !(Tidings (Maybe Photographer.Photographers))
+    }
+
+instance Widget (PhotographersBox a) where
+    getElement = _elementPB
+
+listBox
+    :: Behavior (Model.Data String Photographer.Photographers)
+    -> UI (PhotographersBox a)
+listBox bitems = do
+    _elementPB <- UI.div
+    list <- UI.select
+
+    element _elementPB # sink (items list) bitems
+
+    bb <- Reactive.stepper Nothing UI.never
+
+    let _photographersPB = tidings (Model.toJust <$> bitems) $ selectPhotographeeF <$> (Model.toJust <$> bitems) <@> (filterJust (UI.selectionChange list))
+
+    return PhotographersBox { .. }
+
+
+selectPhotographeeF :: Maybe Photographer.Photographers -> Int -> Maybe Photographer.Photographers
+selectPhotographeeF photographerss selected = case photographerss of
+                                               Nothing -> Nothing
+                                               Just photographers -> 
+                                                            asum $ ListZipper.toNonEmpty $ ListZipper.iextend
+                                                            (\thisIndex photographers'' -> if selected == thisIndex
+                                                                then Just (Photographer.Photographers photographers'')
+                                                                else Nothing
+                                                            ) (Photographer.unPhotographers photographers)
+
+
+mkPhotographers :: Photographer.Photographers -> [UI Element]
+mkPhotographers photographers' = do
+    let zipper = Photographer.unPhotographers photographers'
+    let elems = ListZipper.iextend (\i photographers'' -> (i, zipper == photographers'', extract photographers'')) zipper
+    fmap mkPhotographerListItem (ListZipper.toList elems)
+
+mkPhotographerListItem :: (Int, Bool, Photographer.Photographer) -> UI Element
+mkPhotographerListItem (thisIndex, isCenter, photographer) = do
+    let name' = photographer ^. Photographer.name
+    let option = UI.option # set value (show thisIndex) # set text name'
+    if isCenter then option # set UI.selected True else option
+
+
+items list = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Model.NotAsked     -> return x # set text "Not Asked"
+        Model.Loading      -> return x # set text "bobo"
+        Model.Failure e    -> return x # set text (show e)
+        Model.Data    item -> do
+            element list # set children [] #+ (mkPhotographers item)
+            return x # set children [] #+ [element list]
+
+--------------------------------------------------------------------------------
 
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
     _       <- return win # set title "FF"
     content <- UI.p # set text "bob"
-    elem <- entry bPhotographers
+    elem    <- entry bPhotographers
+    elem2   <- listBox bPhotographers
 
-    void $ UI.getBody win #+ [element elem]
+    let eElem2 = filterJust $ rumors $ _photographersPB elem2
+    _ <- onEvent eElem2 $ \item -> do
+            liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.WritePhographers item)
+
+    void $ UI.getBody win #+ [element elem, element elem2]
 
     _               <- liftIO $ runApp env setupStartMap
     _               <- liftIO $ runApp env startStartMap
+    _               <- liftIO $ runApp env read
 
     messageReceiver <- liftIO $ forkIO $ runApp env (receiveMessages win)
 
@@ -118,6 +185,11 @@ setupStartMap = do
     putMVar mStartMap newStartMap
 
 
+read :: forall  r m . WithChan r m => m ()
+read = do
+    inChan <- unInChan <$> grab @InChan
+    liftIO $ Chan.writeChan inChan Message.ReadPhotographers
+
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
     inChan <- unInChan <$> grab @InChan
@@ -134,6 +206,17 @@ receiveMessages window = do
         case x of
             Message.StopPhotographers -> do
                 return ()
+
+            Message.WritePhographers photographers -> do
+                mPhotographersFile <-
+                    unMPhotographersFile <$> grab @MPhotographersFile
+                photographersFile <- takeMVar mPhotographersFile
+                _ <- Photographer.writePhotographers photographersFile photographers
+                _ <- putMVar mPhotographersFile photographersFile
+                _ <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
             Message.StartPhotograpers -> do
                 mStartMap <- unMStartMap <$> grab @(MStartMap m)
                 mStopMap  <- unMStopMap <$> grab @MStopMap

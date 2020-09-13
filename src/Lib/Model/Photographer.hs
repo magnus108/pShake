@@ -2,9 +2,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Lib.Model.Photographer
-    ( Photographer
-    , Photographers
+    ( Photographer(..)
+    , Photographers(..)
     , getPhotographers
+    , writePhotographers
     , name
     , tid
     , initalState
@@ -42,6 +43,8 @@ newtype Photographers = Photographers { unPhotographers :: ListZipper Photograph
 getPhotographers :: (MonadIO m, MonadThrow m) => FilePath -> m Photographers
 getPhotographers = readJSONFile
 
+writePhotographers :: (MonadIO m, MonadThrow m) => FilePath -> Photographers -> m ()
+writePhotographers = writeJSONFile
 
 initalState :: Data String Photographers
 initalState = NotAsked
