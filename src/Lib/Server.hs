@@ -12,6 +12,7 @@ import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
                                                 , catch
                                                 , catchIOError
+                                                , catchAll
                                                 , try
                                                 )
 import qualified Control.Monad.Except          as E
@@ -99,7 +100,9 @@ entry bValue = do
         case s of
             Model.NotAsked     -> void $ element content # set text "Not Asked"
             Model.Loading      -> void $ element content # set text "bobo"
-            Model.Failure e    -> void $ element content # set text (show e)
+            Model.Failure e    -> do
+                err <- string (show e)
+                void $ element content # set children [] #+ [element err]
             Model.Data    item -> do
                 editing <- liftIO $ currentValue bEditing
                 when (not editing) $ void $ do
@@ -193,7 +196,9 @@ items list = mkWriteAttr $ \i x -> void $ do
     case i of
         Model.NotAsked     -> return x # set text "Not Asked"
         Model.Loading      -> return x # set text "bobo"
-        Model.Failure e    -> return x # set text (show e)
+        Model.Failure e    -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
         Model.Data    item -> do
             element list # set children [] #+ (mkPhotographers item)
             return x # set children [] #+ [element list]
@@ -276,9 +281,7 @@ receiveMessages window = do
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
     forM_ messages $ \x -> do
         traceShowM x
-        traceShowM x
-        traceShowM x
-        !zzz <- case x of
+        case x of
             Message.StopPhotographers -> do
                 return ()
 
@@ -307,25 +310,30 @@ receiveMessages window = do
                 return ()
 
             Message.ReadPhotographers -> do
-                !_ <-traceShowM "lolfuck2"
-                    {-
-                do { mPhotographersFile <-
-                            unMPhotographersFile <$> grab @MPhotographersFile;
-                        photographersFile <- takeMVar mPhotographersFile;
-                        photographers     <- getPhotographers photographersFile;
-                        liftIO $ hPhotographers $ Model.Data photographers;
-                        liftIO $ runUI window flushCallBuffer; -- make sure that JavaScript functions are executed
-                        putMVar mPhotographersFile photographersFile;
-                    } `E.catchError` (\e -> liftIO $ hPhotographers $ Model.Failure (show e))
-                    -}
-                !_ <- traceShowM "lolfuck"
-                return ()
-        traceShowM "OKWHAT"
-        return ()
+                traceShowM "wtf"
+                mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+                photographersFile <- takeMVar mPhotographersFile
+                traceShowM "wtf3"
+                runIt window photographersFile mPhotographersFile `E.catchError` (\e -> do
+                    hPhotographers <- unHPhotographers <$> grab @HPhotographers
+                    liftIO $ hPhotographers $ Model.Failure (show e)
+                    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                    traceShowM "wtf5"
+                    putMVar mPhotographersFile photographersFile
+                    traceShowM "wtf6"
+                                                            )
 
-    traceShowM "WTF NO WAY"
-    return ()
-                    
+runIt :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt window photographersFile mPhotographersFile = do
+    photographers     <- getPhotographers photographersFile
+    traceShowM "wtf4"
+
+    hPhotographers <- unHPhotographers <$> grab @HPhotographers
+
+    liftIO $ hPhotographers $ Model.Data photographers
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mPhotographersFile photographersFile
+    traceShowM "wtf2"
 
 
 --type WithIOError m = MonadError AppError m
@@ -333,10 +341,10 @@ getPhotographers
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Photographer.Photographers
 getPhotographers fp =
     readJSONFile fp
-        `catchIOError` (\e -> do
-                            if isUserError e then
-                                E.throwError (InternalError $ ServerError (show e))
-                            else
+        `catchAll` (\e -> do
+                            --if isUserError e then
+                             --   E.throwError (InternalError $ ServerError (show e))
+                            --else
                                 E.throwError (InternalError $ WTF)
                         )
 
