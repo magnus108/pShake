@@ -15,8 +15,8 @@ import           Control.Monad.Except           ( MonadError(..) )
 import           Relude.Extra.Bifunctor         ( firstF )
 
 import           Lib.App.Env                    ( Env )
-import           Lib.App.Error                  ( Error
-                                                , Exception(..)
+import           Lib.App.Error                  ( AppError
+                                                , AppException(..)
                                                 )
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
@@ -38,20 +38,20 @@ newtype App a = App
                )
 
 
-instance MonadError Error App where
-    throwError :: Error -> App a
-    throwError = liftIO . throwIO . Exception
+instance MonadError AppError App where
+    throwError :: AppError -> App a
+    throwError = liftIO . throwIO . AppException
     {-# INLINE throwError #-}
 
-    catchError :: App a -> (Error -> App a) -> App a
+    catchError :: App a -> (AppError -> App a) -> App a
     catchError action handler = App $ ReaderT $ \env -> do
         let ioAction = runApp env action
-        ioAction `catch` \e -> runApp env $ handler $ unException e
+        ioAction `catch` \e -> runApp env $ handler $ unAppException e
     {-# INLINE catchError #-}
 
 
-runAppAsIO :: AppEnv -> App a -> IO (Either Error a)
-runAppAsIO env = firstF unException . try . runApp env
+runAppAsIO :: AppEnv -> App a -> IO (Either AppError a)
+runAppAsIO env = firstF unAppException . try . runApp env
 
 
 runApp :: AppEnv -> App a -> IO a

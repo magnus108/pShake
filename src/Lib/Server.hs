@@ -4,13 +4,29 @@ module Lib.Server
     )
 where
 
-import           Control.Monad.Catch            ( MonadThrow )
+import           System.IO.Error                ( IOError
+                                                , isUserError
+                                                )
+import           Control.Monad.Except           ( MonadError )
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                , catch
+                                                , catchIOError
+                                                , try
+                                                )
+import qualified Control.Monad.Except          as E
+                                                ( catchError
+                                                , throwError
+                                                )
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Message                   as Message
-import Utils.Comonad
+import           Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
-import           Control.Lens                   ( (^.), (.~), over)
-import qualified Control.Lens as Lens
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                )
+import qualified Control.Lens                  as Lens
 
 
 import qualified Lib.Watchers                  as Watchers
@@ -20,6 +36,10 @@ import           Control.Concurrent             ( forkIO
 import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , grab
+                                                , AppException(..)
+                                                , AppError(..)
+                                                , WithError
+                                                , IError(..)
                                                 , Env(..)
                                                 , Has(..)
                                                 , HPhotographers(..)
@@ -58,18 +78,22 @@ entry
     :: Behavior (Model.Data String Photographer.Photographers)
     -> UI PhotographerEntry
 entry bValue = do
-    content <- UI.div
-    input <- UI.input
-    bEditing <- stepper False $ and <$>
-        unions [True <$ UI.focus input, False <$ UI.blur input]
+    content  <- UI.div
+    input    <- UI.input
+    bEditing <- stepper False $ and <$> unions
+        [True <$ UI.focus input, False <$ UI.blur input]
 
     item <- Reactive.currentValue bValue
     case item of
         Model.Data item -> do
-            void $ element input # set value (extract (Photographer.unPhotographers item) ^. Photographer.name)
+            void $ element input # set
+                value
+                (  extract (Photographer.unPhotographers item)
+                ^. Photographer.name
+                )
         _ -> return ()
 
-    window  <- askWindow
+    window <- askWindow
 
     liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
         case s of
@@ -79,21 +103,29 @@ entry bValue = do
             Model.Data    item -> do
                 editing <- liftIO $ currentValue bEditing
                 when (not editing) $ void $ do
-                    element input # set value (extract (Photographer.unPhotographers item) ^. Photographer.name)
+                    element input # set
+                        value
+                        (  extract (Photographer.unPhotographers item)
+                        ^. Photographer.name
+                        )
                     element content # set children [] #+ [element input]
 
-    let _elementTE       = content
-        _photographersTE = filterJust $ setName <$> (Model.toJust <$> bValue) <@> UI.valueChange input
+    let _elementTE = content
+        _photographersTE =
+            filterJust
+                $   flap
+                .   fmap setName
+                <$> Model.toJust
+                <$> bValue
+                <@> UI.valueChange input
 
     return PhotographerEntry { .. }
 
-setName :: Maybe Photographer.Photographers -> String -> Maybe Photographer.Photographers
-setName photographers' name = case photographers' of
-                               Nothing -> Nothing
-                               Just photographers ->
-                                    case (Photographer.unPhotographers photographers) of
-                                        ListZipper.ListZipper ls x rs -> 
-                                            Just $ Photographer.Photographers $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
+setName :: Photographer.Photographers -> String -> Photographer.Photographers
+setName photographers name = case Photographer.unPhotographers photographers of
+    ListZipper.ListZipper ls x rs ->
+        Photographer.Photographers
+            $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
 
 -----------------------------------------------------------------------------
 
@@ -111,37 +143,48 @@ listBox
     -> UI (PhotographersBox a)
 listBox bitems = do
     _elementPB <- UI.div
-    list <- UI.select
+    list       <- UI.select
 
     element _elementPB # sink (items list) bitems
 
     bb <- Reactive.stepper Nothing UI.never
 
-    let _photographersPB = tidings (Model.toJust <$> bitems) $ selectPhotographeeF <$> (Model.toJust <$> bitems) <@> (filterJust (UI.selectionChange list))
+    let _photographersPB =
+            tidings (Model.toJust <$> bitems)
+                $   selectPhotographeeF
+                <$> (Model.toJust <$> bitems)
+                <@> (filterJust (UI.selectionChange list))
 
     return PhotographersBox { .. }
 
 
-selectPhotographeeF :: Maybe Photographer.Photographers -> Int -> Maybe Photographer.Photographers
+selectPhotographeeF
+    :: Maybe Photographer.Photographers
+    -> Int
+    -> Maybe Photographer.Photographers
 selectPhotographeeF photographerss selected = case photographerss of
-                                               Nothing -> Nothing
-                                               Just photographers -> 
-                                                            asum $ ListZipper.toNonEmpty $ ListZipper.iextend
-                                                            (\thisIndex photographers'' -> if selected == thisIndex
-                                                                then Just (Photographer.Photographers photographers'')
-                                                                else Nothing
-                                                            ) (Photographer.unPhotographers photographers)
+    Nothing            -> Nothing
+    Just photographers -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
+        (\thisIndex photographers'' -> if selected == thisIndex
+            then Just (Photographer.Photographers photographers'')
+            else Nothing
+        )
+        (Photographer.unPhotographers photographers)
 
 
 mkPhotographers :: Photographer.Photographers -> [UI Element]
 mkPhotographers photographers' = do
     let zipper = Photographer.unPhotographers photographers'
-    let elems = ListZipper.iextend (\i photographers'' -> (i, zipper == photographers'', extract photographers'')) zipper
+    let elems = ListZipper.iextend
+            (\i photographers'' ->
+                (i, zipper == photographers'', extract photographers'')
+            )
+            zipper
     fmap mkPhotographerListItem (ListZipper.toList elems)
 
 mkPhotographerListItem :: (Int, Bool, Photographer.Photographer) -> UI Element
 mkPhotographerListItem (thisIndex, isCenter, photographer) = do
-    let name' = photographer ^. Photographer.name
+    let name'  = photographer ^. Photographer.name
     let option = UI.option # set value (show thisIndex) # set text name'
     if isCenter then option # set UI.selected True else option
 
@@ -166,11 +209,13 @@ setup env@Env {..} win = mdo
 
     let eElem = _photographersTE elem
     _ <- onEvent eElem $ \item -> do
-            liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.WritePhographers item)
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WritePhographers item)
 
     let eElem2 = filterJust $ rumors $ _photographersPB elem2
     _ <- onEvent eElem2 $ \item -> do
-            liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.WritePhographers item)
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WritePhographers item)
 
     void $ UI.getBody win #+ [element elem, element elem2]
 
@@ -189,6 +234,7 @@ setup env@Env {..} win = mdo
 
 type WithChan r m
     = ( MonadThrow m
+      , MonadError AppError m
       , MonadReader r m
       , Has WatchManager r
       , Has HPhotographers r
@@ -198,6 +244,7 @@ type WithChan r m
       , Has OutChan r
       , Has InChan r
       , MonadIO m
+      , MonadCatch m
       )
 
 
@@ -229,7 +276,9 @@ receiveMessages window = do
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
     forM_ messages $ \x -> do
         traceShowM x
-        case x of
+        traceShowM x
+        traceShowM x
+        !zzz <- case x of
             Message.StopPhotographers -> do
                 return ()
 
@@ -237,7 +286,8 @@ receiveMessages window = do
                 mPhotographersFile <-
                     unMPhotographersFile <$> grab @MPhotographersFile
                 photographersFile <- takeMVar mPhotographersFile
-                _ <- Photographer.writePhotographers photographersFile photographers
+                _ <- Photographer.writePhotographers photographersFile
+                                                     photographers
                 _ <- putMVar mPhotographersFile photographersFile
                 _ <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
@@ -257,12 +307,37 @@ receiveMessages window = do
                 return ()
 
             Message.ReadPhotographers -> do
-                mPhotographersFile <-
-                    unMPhotographersFile <$> grab @MPhotographersFile
-                photographersFile <- takeMVar mPhotographersFile
-                photographers <- Photographer.getPhotographers photographersFile
-                _ <- putMVar mPhotographersFile photographersFile
-                _ <- liftIO $ hPhotographers $ Model.Data photographers
-                _ <- liftIO $ runUI window $ do
-                    flushCallBuffer -- make sure that JavaScript functions are executed
+                !_ <-traceShowM "lolfuck2"
+                    {-
+                do { mPhotographersFile <-
+                            unMPhotographersFile <$> grab @MPhotographersFile;
+                        photographersFile <- takeMVar mPhotographersFile;
+                        photographers     <- getPhotographers photographersFile;
+                        liftIO $ hPhotographers $ Model.Data photographers;
+                        liftIO $ runUI window flushCallBuffer; -- make sure that JavaScript functions are executed
+                        putMVar mPhotographersFile photographersFile;
+                    } `E.catchError` (\e -> liftIO $ hPhotographers $ Model.Failure (show e))
+                    -}
+                !_ <- traceShowM "lolfuck"
                 return ()
+        traceShowM "OKWHAT"
+        return ()
+
+    traceShowM "WTF NO WAY"
+    return ()
+                    
+
+
+--type WithIOError m = MonadError AppError m
+getPhotographers
+    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Photographer.Photographers
+getPhotographers fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                            if isUserError e then
+                                E.throwError (InternalError $ ServerError (show e))
+                            else
+                                E.throwError (InternalError $ WTF)
+                        )
+
+

@@ -1,16 +1,26 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Lib.App.Error
-    ( Error(..)
-    , Lib.App.Error.Exception(..)
+    ( AppError(..)
+    , AppException(..)
+    , WithError
+    , IError(..)
     )
 where
 
+import           Control.Monad.Except           ( MonadError )
 import qualified Control.Exception             as Exception
 
-newtype Exception = Exception
-    { unException :: Error
-    } deriving (Show)
-      deriving anyclass (Exception.Exception)
+type WithError m = MonadError AppError m
 
-data Error = Error
-    deriving (Show)
+newtype AppException = AppException
+    { unAppException :: AppError
+    } deriving (Show)
+      deriving anyclass (Exception)
+
+newtype AppError = InternalError IError
+    deriving (Show, Eq)
+
+data IError
+    = WTF
+    | ServerError String
+    deriving (Show, Eq)
