@@ -7,10 +7,12 @@ module Prelude
     )
 where
 
+import Control.Exception (IOException)
 import           Relude
 
 import           System.IO.Error                ( userError )
 import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
                                                 , throwM
                                                 )
 import           Data.Aeson                     ( FromJSON
@@ -25,25 +27,34 @@ import           Data.Aeson                     ( FromJSON
                                                 )
 import           Conduit                        ( builderToByteString
                                                 , sinkFileBS
+                                                , Source(..)
+                                                , ResourceT(..)
+                                                , MonadUnliftIO
                                                 )
 import           Data.Conduit                   ( ConduitM
                                                 , runConduitRes
                                                 , (.|)
                                                 , yield
+                                                , catchC
                                                 )
-import           Data.Conduit.Attoparsec        ( sinkParser )
+import           Data.Conduit.Attoparsec        ( sinkParser, ParseError(..))
 import           Data.Conduit.Binary            ( sourceFile )
 
+import Control.Exception (catch)
 
-sinkFromJSON :: (MonadThrow m, FromJSON a) => ConduitM ByteString o m a
+sinkFromJSON :: (MonadUnliftIO m, MonadThrow m, FromJSON a) => ConduitM ByteString o m a
 sinkFromJSON = do
-    value <- sinkParser json
+    traceShowM "lola"
+    value <- sinkParser json `catchC` \e -> do
+                        traceShowM "lola3"
+                        let t = (e :: ParseError)
+                        throwM $ userError "couldNotRead"
+    traceShowM "lola2"
     case fromJSON value of
         Error   e -> throwM $ userError e
         Success x -> return x
 
-
-readJSONFile :: (MonadIO m, FromJSON a) => FilePath -> m a
+readJSONFile :: (MonadThrow m, MonadIO m, FromJSON a) => FilePath -> m a
 readJSONFile fp = liftIO $ runConduitRes $ sourceFile fp .| sinkFromJSON
 
 

@@ -341,10 +341,10 @@ getPhotographers
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Photographer.Photographers
 getPhotographers fp =
     readJSONFile fp
-        `catchAll` (\e -> do
-                            --if isUserError e then
-                             --   E.throwError (InternalError $ ServerError (show e))
-                            --else
+        `catchIOError` (\e -> do
+                           if isUserError e then
+                                E.throwError (InternalError $ ServerError (show e))
+                            else
                                 E.throwError (InternalError $ WTF)
                         )
 

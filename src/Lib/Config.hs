@@ -7,7 +7,9 @@ where
 
 import           System.FilePath
 
-import           Control.Monad.Catch            ( MonadThrow )
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                )
 
 data Config = Config
     { dumpFile :: !FilePath
@@ -28,7 +30,7 @@ data Config = Config
       deriving (FromJSON, ToJSON)
       deriving (Show)
 
-loadConfig :: (MonadIO m, MonadThrow m) => FilePath -> FilePath -> m Config
+loadConfig :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> FilePath -> m Config
 loadConfig root file = do
     let config = root </> file
     readJSONFile config

@@ -16,7 +16,9 @@ import           Lib.Model.Data
 import           Utils.ListZipper
 import           Control.Lens
 
-import           Control.Monad.Catch            ( MonadThrow )
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                )
 
 type Name = String
 type Tid = String
@@ -40,10 +42,12 @@ newtype Photographers = Photographers { unPhotographers :: ListZipper Photograph
     deriving anyclass (FromJSON, ToJSON)
 
 
-getPhotographers :: (MonadIO m, MonadThrow m) => FilePath -> m Photographers
+getPhotographers
+    :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Photographers
 getPhotographers = readJSONFile
 
-writePhotographers :: (MonadIO m, MonadThrow m) => FilePath -> Photographers -> m ()
+writePhotographers
+    :: (MonadIO m, MonadThrow m) => FilePath -> Photographers -> m ()
 writePhotographers = writeJSONFile
 
 initalState :: Data String Photographers
