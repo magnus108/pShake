@@ -44,12 +44,9 @@ import Control.Exception (catch)
 
 sinkFromJSON :: (MonadUnliftIO m, MonadThrow m, FromJSON a) => ConduitM ByteString o m a
 sinkFromJSON = do
-    traceShowM "lola"
     value <- sinkParser json `catchC` \e -> do
-                        traceShowM "lola3"
                         let t = (e :: ParseError)
                         throwM $ userError "couldNotRead"
-    traceShowM "lola2"
     case fromJSON value of
         Error   e -> throwM $ userError e
         Success x -> return x

@@ -230,7 +230,6 @@ setup env@Env {..} win = mdo
 
     messageReceiver <- liftIO $ forkIO $ runApp env (receiveMessages win)
 
-
     UI.on UI.disconnect win $ const $ liftIO $ do
         --HashMap ti list and kill all
         killThread messageReceiver
