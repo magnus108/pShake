@@ -10,6 +10,10 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
+
+    , HDumpDir(..)
+    , MDumpFile(..)
+
     , HTabs(..)
     , MTabsFile(..)
     , HShootings(..)
@@ -26,6 +30,7 @@ import qualified System.FSNotify               as FS
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
+import qualified Lib.Model.Dump                as Dump
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
@@ -37,7 +42,7 @@ data Env (m :: Type -> Type) = Env
     { inChan :: InChan
     , outChan :: OutChan
 
-    , mDumpFile :: !(MVar FilePath)
+    , mDumpFile :: MDumpFile
     , mDoneshootingFile :: !(MVar FilePath)
     , mDagsdatoFile :: !(MVar FilePath)
     , mDagsdatoBackupFile :: !(MVar FilePath)
@@ -71,8 +76,8 @@ data Env (m :: Type -> Type) = Env
     , hDirDagsdatoBackup :: !(Reactive.Handler ())
     , eConfigDagsdatoBackup :: !(Reactive.Event ())
     , hConfigDagsdatoBackup :: !(Reactive.Handler ())
-    , eDumpDir :: !(Reactive.Event ())
-    , hDumpDir :: !(Reactive.Handler ())
+    , eDumpDir :: !(Reactive.Event (Data.Data String Dump.Dump))
+    , hDumpDir :: HDumpDir
     , eConfigDump :: !(Reactive.Event ())
     , hConfigDump :: !(Reactive.Handler ())
     , eTabs :: !(Reactive.Event (Data.Data String Tab.Tabs))
@@ -102,6 +107,8 @@ data Env (m :: Type -> Type) = Env
 
     , bShootings :: !(Reactive.Behavior (Data.Data String Shooting.Shootings))
 
+    , bDumpDir :: !(Reactive.Behavior (Data.Data String Dump.Dump))
+
     , watchManager :: WatchManager
     }
 
@@ -121,6 +128,9 @@ newtype HTabs = HTabs { unHTabs :: Reactive.Handler (Data.Data String Tab.Tabs) 
 
 newtype MShootingsFile = MShootingsFile { unMShootingsFile :: MVar FilePath }
 newtype HShootings = HShootings { unHShootings :: Reactive.Handler (Data.Data String Shooting.Shootings) }
+
+newtype MDumpFile = MDumpFile { unMDumpFile :: MVar FilePath }
+newtype HDumpDir = HDumpDir { unHDumpDir :: Reactive.Handler (Data.Data String Dump.Dump) }
 
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
 
@@ -160,6 +170,12 @@ instance Has MShootingsFile              (Env m) where
 
 instance Has HShootings             (Env m) where
     obtain = hShootings
+
+instance Has MDumpFile              (Env m) where
+    obtain = mDumpFile
+
+instance Has HDumpDir             (Env m) where
+    obtain = hDumpDir
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field

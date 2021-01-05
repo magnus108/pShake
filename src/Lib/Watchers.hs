@@ -2,6 +2,7 @@ module Lib.Watchers
     ( photographersFile
     , tabsFile
     , shootingsFile
+    , dumpFile
     )
 where
 
@@ -14,6 +15,7 @@ import           Lib.App                        ( grab
                                                 , MTabsFile
 
                                                 , MShootingsFile
+                                                , MDumpFile
 
                                                 , MStopMap
                                                 , MStartMap
@@ -21,6 +23,7 @@ import           Lib.App                        ( grab
                                                 , unMTabsFile
 
                                                 , unMShootingsFile
+                                                , unMDumpFile
 
                                                 , unInChan
                                                 , unWatchManager
@@ -37,6 +40,7 @@ type WithEnv r m = (MonadReader r m
 
   , Has MTabsFile r
   , Has MShootingsFile r
+  , Has MDumpFile r
 
   , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
 
@@ -88,6 +92,24 @@ shootingsFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadShootings
+            return ()
+        )
+    return stop
+
+
+dumpFile :: WithEnv r m => m FS.StopListening
+dumpFile = do
+    unMDumpFile <- unMDumpFile <$> grab @MDumpFile
+    file <- liftIO $ readMVar unMDumpFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadDump
             return ()
         )
     return stop

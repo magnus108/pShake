@@ -9,7 +9,9 @@ import           Lib.App                        ( AppEnv
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 
-import qualified Lib.Model.Shooting                 as Shooting
+import qualified Lib.Model.Shooting            as Shooting
+
+import qualified Lib.Model.Dump                as Dump
 
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
@@ -35,19 +37,21 @@ mkAppEnv port Config.Config {..} = do
 
     mPhotographersFile' <- newMVar photographersFile
     let mPhotographersFile = App.MPhotographersFile mPhotographersFile'
-    mDumpFile           <- newMVar dumpFile
+    mDumpFile' <- newMVar dumpFile
+    let mDumpFile = App.MDumpFile mDumpFile'
+
     mDoneshootingFile   <- newMVar doneshootingFile
     mDagsdatoFile       <- newMVar dagsdatoFile
     mDagsdatoBackupFile <- newMVar dagsdatoBackupFile
 
-    mShootingsFile' <- newMVar shootingsFile
+    mShootingsFile'     <- newMVar shootingsFile
     let mShootingsFile = App.MShootingsFile mShootingsFile'
 
-    mSessionsFile       <- newMVar sessionsFile
-    mGradesFile         <- newMVar gradesFile
-    mCamerasFile        <- newMVar camerasFile
+    mSessionsFile <- newMVar sessionsFile
+    mGradesFile   <- newMVar gradesFile
+    mCamerasFile  <- newMVar camerasFile
 
-    mTabsFile'          <- newMVar tabsFile
+    mTabsFile'    <- newMVar tabsFile
     let mTabsFile = App.MTabsFile mTabsFile'
 
     mLocationConfigFile <- newMVar locationConfigFile
@@ -69,7 +73,10 @@ mkAppEnv port Config.Config {..} = do
     (eConfigDagsdato      , hConfigDagsdato      ) <- Reactive.newEvent
     (eDirDagsdatoBackup   , hDirDagsdatoBackup   ) <- Reactive.newEvent
     (eConfigDagsdatoBackup, hConfigDagsdatoBackup) <- Reactive.newEvent
-    (eDumpDir             , hDumpDir             ) <- Reactive.newEvent
+
+    (eDumpDir             , hDumpDir'             ) <- Reactive.newEvent
+    let hDumpDir = App.HDumpDir hDumpDir'
+
     (eConfigDump          , hConfigDump          ) <- Reactive.newEvent
 
     (eTabs                , hTabs'               ) <- Reactive.newEvent
@@ -77,9 +84,9 @@ mkAppEnv port Config.Config {..} = do
 
     (ePhotographers, hPhotographers') <- Reactive.newEvent
     let hPhotographers = App.HPhotographers hPhotographers'
-    (eCameras           , hCameras           ) <- Reactive.newEvent
+    (eCameras  , hCameras   ) <- Reactive.newEvent
 
-    (eShootings         , hShootings' ) <- Reactive.newEvent
+    (eShootings, hShootings') <- Reactive.newEvent
     let hShootings = App.HShootings hShootings'
 
     (eSessions          , hSessions          ) <- Reactive.newEvent
@@ -100,7 +107,9 @@ mkAppEnv port Config.Config {..} = do
 
     bTabs          <- Reactive.stepper Tab.initalState eTabs
 
-    bShootings <- Reactive.stepper Shooting.initalState eShootings
+    bShootings     <- Reactive.stepper Shooting.initalState eShootings
+
+    bDumpDir     <- Reactive.stepper Dump.initalState eDumpDir
 
     pure Env { .. }
 

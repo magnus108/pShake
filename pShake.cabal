@@ -33,6 +33,7 @@ library
       Lib.Config
       Lib.Message
       Lib.Model.Data
+      Lib.Model.Dump
       Lib.Model.Photographer
       Lib.Model.Shooting
       Lib.Model.Tab

@@ -45,6 +45,10 @@ import           Lib.App                        ( runApp
                                                 , Has(..)
                                                 , HPhotographers(..)
                                                 , MPhotographersFile(..)
+
+                                                , HDumpDir(..)
+                                                , MDumpFile(..)
+
                                                 , HTabs(..)
                                                 , MTabsFile(..)
                                                 , HShootings(..)
@@ -71,6 +75,7 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Model.Dump                 as Dump
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Photographer        as Photographer
@@ -158,7 +163,6 @@ listBoxShootings bitems = do
 
     element _elementShootingPB # sink (itemsShooting list) bitems
 
-    bb <- Reactive.stepper Nothing UI.never
 
     let _shootingsPB =
             tidings (Data.toJust <$> bitems)
@@ -231,8 +235,6 @@ listBox bitems = do
 
     element _elementPB # sink (items list) bitems
 
-    bb <- Reactive.stepper Nothing UI.never
-
     let _photographersPB =
             tidings (Data.toJust <$> bitems)
                 $   selectPhotographeeF
@@ -285,6 +287,48 @@ items list = mkWriteAttr $ \i x -> void $ do
             return x # set children [] #+ [element list]
 
 --------------------------------------------------------------------------------
+data DumpBox a = DumpBox
+    { _elementDumpPB   :: Element
+    , _dumpPB :: !(Tidings (Maybe Dump.Dump))
+    }
+
+instance Widget (DumpBox a) where
+    getElement = _elementDumpPB
+
+
+listBoxDump
+    :: Behavior (Data.Data String Dump.Dump)
+    -> UI (DumpBox a)
+listBoxDump bitems = do
+    _elementDumpPB <- UI.div
+
+    selector <- UI.div
+
+    element _elementDumpPB # sink (dumpItem selector) bitems
+
+    let _dumpPB =
+            tidings (Data.toJust <$> bitems)  UI.never
+
+    return DumpBox { .. }
+
+
+dumpItem folderPicker = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            element folderPicker # set children [] #+ [mkFolderPicker item]
+            return x # set children [] #+ [element folderPicker]
+
+mkFolderPicker :: Dump.Dump -> UI Element
+mkFolderPicker dump = do
+    let name'  = Dump.unDump dump
+    UI.p # set text name'
+
+--------------------------------------------------------------------------------
 data TabsBox a = TabsBox
     { _tabsE :: Element
     , _tabsPB :: !(Tidings (Maybe Tab.Tabs))
@@ -297,25 +341,26 @@ tabsBox
     :: Behavior (Data.Data String Tab.Tabs)
     -> Behavior (Data.Data String Photographer.Photographers)
     -> Behavior (Data.Data String Shooting.Shootings)
-    -> UI (PhotographersBox b, ShootingsBox c, TabsBox a)
-tabsBox bitems bPhotographers bShootings = do
+    -> Behavior (Data.Data String Dump.Dump)
+    -> UI (PhotographersBox b, ShootingsBox c, DumpBox d, TabsBox a)
+tabsBox bTabs bPhotographers bShootings bDump = do
     _tabsE <- UI.div
     list   <- UI.select
 
     elemPhotographers <- listBox bPhotographers
     elemShootings <- listBoxShootings bShootings
+    elemDump <- listBoxDump bDump
 
-    element _tabsE # sink (tabItems list elemPhotographers elemShootings) bitems
+    element _tabsE # sink (tabItems list elemPhotographers elemShootings elemDump) bTabs
 
-    bb <- Reactive.stepper Nothing UI.never
 
     let _tabsPB =
-            tidings (Data.toJust <$> bitems)
+            tidings (Data.toJust <$> bTabs)
                 $   selectTabF
-                <$> (Data.toJust <$> bitems)
+                <$> (Data.toJust <$> bTabs)
                 <@> (filterJust (UI.selectionChange list))
 
-    return (elemPhotographers, elemShootings, TabsBox { .. })
+    return (elemPhotographers, elemShootings, elemDump, TabsBox { .. })
 
 
 selectTabF :: Maybe Tab.Tabs -> Int -> Maybe Tab.Tabs
@@ -343,7 +388,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings = mkWriteAttr $ \i x -> void $ do
+tabItems list photographers shootings dump = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
         Data.Loading   -> return x # set text "bobo"
@@ -364,6 +409,12 @@ tabItems list photographers shootings = mkWriteAttr $ \i x -> void $ do
                         #  set children []
                         #+ [element list, element shootings]
 
+                Tab.DumpTab -> do
+                    element list # set children [] #+ (mkTabs item)
+                    return x
+                        #  set children []
+                        #+ [element list, element dump]
+
                 _ -> do
                     element list # set children [] #+ (mkTabs item)
                     return x # set children [] #+ [element list]
@@ -375,17 +426,23 @@ setup env@Env {..} win = mdo
     _              <- return win # set title "FF"
 
     elem           <- entry bPhotographers
-    (elemPhotographers, elemShootings, elem3) <- tabsBox bTabs bPhotographers bShootings
+    (elemPhotographers, elemShootings, elemDump, elem3) <- tabsBox bTabs bPhotographers bShootings bDumpDir
 
-    let eElem = _photographersTE elem
-    _ <- onEvent eElem $ \item -> do
-        liftIO $ void $ Chan.writeChan (unInChan inChan)
-                                       (Message.WritePhographers item)
 
     let eElemPhotographers = filterJust $ rumors $ _photographersPB elemPhotographers
     _ <- onEvent eElemPhotographers $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
+
+    let eElemShootings = filterJust $ rumors $ _shootingsPB elemShootings
+    _ <- onEvent eElemShootings $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteShootings item)
+
+    let eElemDump = filterJust $ rumors $ _dumpPB elemDump
+    _ <- onEvent eElemDump $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteDump item)
 
     let eElem3 = filterJust $ rumors $ _tabsPB elem3
     _ <- onEvent eElem3 $ \item -> do
@@ -393,7 +450,7 @@ setup env@Env {..} win = mdo
                                        (Message.WriteTabs item)
 
 
-    void $ UI.getBody win #+ [element elem, element elem3]
+    void $ UI.getBody win #+ [element elem3]
 
     _               <- liftIO $ runApp env setupStartMap
     _               <- liftIO $ runApp env startStartMap
@@ -422,6 +479,9 @@ type WithChan r m
       , Has HShootings r
       , Has MShootingsFile r
 
+      , Has HDumpDir r
+      , Has MDumpFile r
+
       , Has (MStartMap m) r
       , Has MStopMap r
       , Has OutChan r
@@ -448,7 +508,11 @@ setupStartMap = do
     let watcher3     = Watchers.shootingsFile
     let newStartMap3 = HashMap.insert key3 watcher3 newStartMap2
 
-    putMVar mStartMap newStartMap3
+    let key4         = "dump"
+    let watcher4     = Watchers.dumpFile
+    let newStartMap4 = HashMap.insert key4 watcher4 newStartMap3
+
+    putMVar mStartMap newStartMap4
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -457,6 +521,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadPhotographers
     liftIO $ Chan.writeChan inChan Message.ReadTabs
     liftIO $ Chan.writeChan inChan Message.ReadShootings
+    liftIO $ Chan.writeChan inChan Message.ReadDump
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
@@ -464,6 +529,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartPhotograpers
     liftIO $ Chan.writeChan inChan Message.StartTabs
     liftIO $ Chan.writeChan inChan Message.StartShootings
+    liftIO $ Chan.writeChan inChan Message.StartDump
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -605,6 +671,50 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 
+--------------------------------------------------------------------------------
+            Message.StopDump -> do
+                return ()
+
+            Message.WriteDump dump -> do
+                mDumpFile <- unMDumpFile <$> grab @MDumpFile
+                dumpFile  <- takeMVar mDumpFile
+                _              <- Dump.writeDump dumpFile dump
+                _              <- putMVar mDumpFile dumpFile
+                _              <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartDump -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "dump"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadDump -> do
+                traceShowM "wtf"
+                mDumpFile <- unMDumpFile <$> grab @MDumpFile
+                dumpFile  <- takeMVar mDumpFile
+                traceShowM "wtf3"
+                runIt4 window dumpFile mDumpFile
+                    `E.catchError` (\e -> do
+                                       hDumpDir <-
+                                           unHDumpDir <$> grab @HDumpDir
+                                       liftIO $ hDumpDir $ Data.Failure
+                                           (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mDumpFile dumpFile
+                                       traceShowM "wtf6"
+                                   )
+
 
 runIt
     :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
@@ -673,6 +783,30 @@ getShootings
     => FilePath
     -> m Shooting.Shootings
 getShootings fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+runIt4
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt4 window dumpFile mDumpFile = do
+    dump  <- getDump dumpFile
+    hDumpDir <- unHDumpDir <$> grab @HDumpDir
+    liftIO $ hDumpDir $ Data.Data dump
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mDumpFile dumpFile
+
+
+--type WithIOError m = MonadError AppError m
+getDump
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m Dump.Dump
+getDump fp =
     readJSONFile fp
         `catchIOError` (\e -> do
                            if isUserError e
