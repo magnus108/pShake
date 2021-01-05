@@ -7,6 +7,7 @@ import           Lib.App                        ( AppEnv
                                                 , Env(..)
                                                 )
 import qualified Lib.Model.Photographer        as Photographer
+import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -39,7 +40,10 @@ mkAppEnv port Config.Config {..} = do
     mSessionsFile       <- newMVar sessionsFile
     mGradesFile         <- newMVar gradesFile
     mCamerasFile        <- newMVar camerasFile
-    mTabsFile           <- newMVar tabsFile
+
+    mTabsFile'          <- newMVar tabsFile
+    let mTabsFile = App.MTabsFile mTabsFile'
+
     mLocationConfigFile <- newMVar locationConfigFile
     mTranslationFile    <- newMVar translationFile
     mPhotograheesFile   <- newMVar photograheesFile
@@ -61,8 +65,9 @@ mkAppEnv port Config.Config {..} = do
     (eConfigDagsdatoBackup, hConfigDagsdatoBackup) <- Reactive.newEvent
     (eDumpDir             , hDumpDir             ) <- Reactive.newEvent
     (eConfigDump          , hConfigDump          ) <- Reactive.newEvent
-    (eTabs                , hTab                 ) <- Reactive.newEvent
-    (ePhotographers       , hPhotographers'      ) <- Reactive.newEvent
+    (eTabs                , hTabs'               ) <- Reactive.newEvent
+    let hTabs = App.HTabs hTabs'
+    (ePhotographers, hPhotographers') <- Reactive.newEvent
     let hPhotographers = App.HPhotographers hPhotographers'
     (eCameras           , hCameras           ) <- Reactive.newEvent
     (eShootings         , hShootings         ) <- Reactive.newEvent
@@ -74,12 +79,15 @@ mkAppEnv port Config.Config {..} = do
 
     watchManager'                              <- FS.startManagerConf
         (FS.defaultConfig
-            { FS.confDebounce = FS.Debounce (Clock.secondsToNominalDiffTime 0.0000001)
+            { FS.confDebounce = FS.Debounce
+                                    (Clock.secondsToNominalDiffTime 0.0000001)
             }
         )
     let watchManager = App.WatchManager watchManager'
 
     bPhotographers <- Reactive.stepper Photographer.initalState ePhotographers
+
+    bTabs          <- Reactive.stepper Tab.initalState eTabs
 
     pure Env { .. }
 

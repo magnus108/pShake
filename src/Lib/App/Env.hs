@@ -10,6 +10,8 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
+    , HTabs(..)
+    , MTabsFile(..)
     , grab
     )
 where
@@ -19,7 +21,9 @@ import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 import qualified Reactive.Threepenny           as Reactive
 import qualified System.FSNotify               as FS
-import qualified Lib.Model                     as Model
+import qualified Lib.Model.Photographer        as Photographer
+import qualified Lib.Model.Tab                 as Tab
+import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
 
@@ -39,7 +43,7 @@ data Env (m :: Type -> Type) = Env
     , mPhotographersFile :: MPhotographersFile
     , mGradesFile :: !(MVar FilePath)
     , mCamerasFile :: !(MVar FilePath)
-    , mTabsFile :: !(MVar FilePath)
+    , mTabsFile :: MTabsFile
     , mLocationConfigFile :: !(MVar FilePath)
     , mTranslationFile :: !(MVar FilePath)
     , mPhotograheesFile :: !(MVar FilePath)
@@ -68,9 +72,9 @@ data Env (m :: Type -> Type) = Env
     , hDumpDir :: !(Reactive.Handler ())
     , eConfigDump :: !(Reactive.Event ())
     , hConfigDump :: !(Reactive.Handler ())
-    , eTabs :: !(Reactive.Event ())
-    , hTab :: !(Reactive.Handler ())
-    , ePhotographers :: !(Reactive.Event (Model.Data String Model.Photographers))
+    , eTabs :: !(Reactive.Event (Data.Data String Tab.Tabs))
+    , hTabs :: HTabs
+    , ePhotographers :: !(Reactive.Event (Data.Data String Photographer.Photographers))
     , hPhotographers :: HPhotographers
     , eCameras :: !(Reactive.Event ())
     , hCameras :: !(Reactive.Handler ())
@@ -87,7 +91,10 @@ data Env (m :: Type -> Type) = Env
     , eBuild :: !(Reactive.Event ())
     , hBuild :: !(Reactive.Handler ())
 
-    , bPhotographers :: !(Reactive.Behavior (Model.Data String Model.Photographers))
+    , bPhotographers :: !(Reactive.Behavior (Data.Data String Photographer.Photographers))
+
+    , bTabs :: !(Reactive.Behavior (Data.Data String Tab.Tabs))
+
     , watchManager :: WatchManager
     }
 
@@ -99,7 +106,10 @@ newtype InChan = InChan { unInChan:: Chan.InChan Message.Message }
 newtype OutChan = OutChan { unOutChan :: Chan.OutChan Message.Message }
 
 newtype MPhotographersFile = MPhotographersFile { unMPhotographersFile :: MVar FilePath }
-newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler (Model.Data String Model.Photographers) }
+newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler (Data.Data String Photographer.Photographers) }
+
+newtype MTabsFile = MTabsFile { unMTabsFile :: MVar FilePath }
+newtype HTabs = HTabs { unHTabs :: Reactive.Handler (Data.Data String Tab.Tabs) }
 
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
 
@@ -127,6 +137,12 @@ instance Has MPhotographersFile              (Env m) where
 
 instance Has HPhotographers             (Env m) where
     obtain = hPhotographers
+
+instance Has MTabsFile              (Env m) where
+    obtain = mTabsFile
+
+instance Has HTabs             (Env m) where
+    obtain = hTabs
 
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field

@@ -45,14 +45,18 @@ import           Lib.App                        ( runApp
                                                 , Has(..)
                                                 , HPhotographers(..)
                                                 , MPhotographersFile(..)
+                                                , HTabs(..)
+                                                , MTabsFile(..)
                                                 , MStartMap(..)
                                                 , WatchManager(..)
                                                 , MStopMap(..)
                                                 , OutChan(..)
                                                 , InChan(..)
                                                 , unMPhotographersFile
-                                                , unMStopMap
                                                 , unHPhotographers
+                                                , unMTabsFile
+                                                , unHTabs
+                                                , unMStopMap
                                                 , unMStartMap
                                                 , unOutChan
                                                 , unInChan
@@ -63,8 +67,9 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Photographer        as Photographer
-import qualified Lib.Model                     as Model
+import qualified Lib.Model.Data                as Data
 
 
 data PhotographerEntry = PhotographerEntry
@@ -76,7 +81,7 @@ instance Widget PhotographerEntry where
     getElement = _elementTE
 
 entry
-    :: Behavior (Model.Data String Photographer.Photographers)
+    :: Behavior (Data.Data String Photographer.Photographers)
     -> UI PhotographerEntry
 entry bValue = do
     content  <- UI.div
@@ -86,7 +91,7 @@ entry bValue = do
 
     item <- Reactive.currentValue bValue
     case item of
-        Model.Data item -> do
+        Data.Data item -> do
             void $ element input # set
                 value
                 (  extract (Photographer.unPhotographers item)
@@ -98,12 +103,12 @@ entry bValue = do
 
     liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
         case s of
-            Model.NotAsked     -> void $ element content # set text "Not Asked"
-            Model.Loading      -> void $ element content # set text "bobo"
-            Model.Failure e    -> do
+            Data.NotAsked  -> void $ element content # set text "Not Asked"
+            Data.Loading   -> void $ element content # set text "bobo"
+            Data.Failure e -> do
                 err <- string (show e)
                 void $ element content # set children [] #+ [element err]
-            Model.Data    item -> do
+            Data.Data item -> do
                 editing <- liftIO $ currentValue bEditing
                 when (not editing) $ void $ do
                     element input # set
@@ -118,7 +123,7 @@ entry bValue = do
             filterJust
                 $   flap
                 .   fmap setName
-                <$> Model.toJust
+                <$> Data.toJust
                 <$> bValue
                 <@> UI.valueChange input
 
@@ -131,8 +136,6 @@ setName photographers name = case Photographer.unPhotographers photographers of
             $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
 
 -----------------------------------------------------------------------------
-
-
 data PhotographersBox a = PhotographersBox
     { _elementPB   :: Element
     , _photographersPB :: !(Tidings (Maybe Photographer.Photographers))
@@ -142,7 +145,7 @@ instance Widget (PhotographersBox a) where
     getElement = _elementPB
 
 listBox
-    :: Behavior (Model.Data String Photographer.Photographers)
+    :: Behavior (Data.Data String Photographer.Photographers)
     -> UI (PhotographersBox a)
 listBox bitems = do
     _elementPB <- UI.div
@@ -153,9 +156,9 @@ listBox bitems = do
     bb <- Reactive.stepper Nothing UI.never
 
     let _photographersPB =
-            tidings (Model.toJust <$> bitems)
+            tidings (Data.toJust <$> bitems)
                 $   selectPhotographeeF
-                <$> (Model.toJust <$> bitems)
+                <$> (Data.toJust <$> bitems)
                 <@> (filterJust (UI.selectionChange list))
 
     return PhotographersBox { .. }
@@ -194,23 +197,98 @@ mkPhotographerListItem (thisIndex, isCenter, photographer) = do
 
 items list = mkWriteAttr $ \i x -> void $ do
     case i of
-        Model.NotAsked     -> return x # set text "Not Asked"
-        Model.Loading      -> return x # set text "bobo"
-        Model.Failure e    -> do
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
             err <- string (show e)
             return x # set children [] #+ [element err]
-        Model.Data    item -> do
+        Data.Data item -> do
             element list # set children [] #+ (mkPhotographers item)
             return x # set children [] #+ [element list]
+
+--------------------------------------------------------------------------------
+data TabsBox a = TabsBox
+    { _tabsE :: Element
+    , _tabsPB :: !(Tidings (Maybe Tab.Tabs))
+    }
+
+instance Widget (TabsBox a) where
+    getElement = _tabsE
+
+tabsBox
+    :: Behavior (Data.Data String Tab.Tabs)
+    -> Behavior (Data.Data String Photographer.Photographers)
+    -> UI (PhotographersBox b, TabsBox a)
+tabsBox bitems bPhotographers = do
+    _tabsE <- UI.div
+    list   <- UI.select
+
+    elem2  <- listBox bPhotographers
+
+    element _tabsE # sink (tabItems list elem2) bitems
+
+    bb <- Reactive.stepper Nothing UI.never
+
+    let _tabsPB =
+            tidings (Data.toJust <$> bitems)
+                $   selectTabF
+                <$> (Data.toJust <$> bitems)
+                <@> (filterJust (UI.selectionChange list))
+
+    return (elem2, TabsBox { .. })
+
+
+selectTabF :: Maybe Tab.Tabs -> Int -> Maybe Tab.Tabs
+selectTabF tabs selected = case tabs of
+    Nothing   -> Nothing
+    Just tabs -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
+        (\thisIndex tabs'' ->
+            if selected == thisIndex then Just (Tab.Tabs tabs'') else Nothing
+        )
+        (Tab.unTabs tabs)
+
+
+mkTabs :: Tab.Tabs -> [UI Element]
+mkTabs tabs' = do
+    let zipper = Tab.unTabs tabs'
+    let elems = ListZipper.iextend
+            (\i tabs'' -> (i, zipper == tabs'', extract tabs''))
+            zipper
+    fmap mkTabListItem (ListZipper.toList elems)
+
+mkTabListItem :: (Int, Bool, Tab.Tab) -> UI Element
+mkTabListItem (thisIndex, isCenter, tab) = do
+    let name'  = show tab --- FIX THIS translate
+    let option = UI.option # set value (show thisIndex) # set text name'
+    if isCenter then option # set UI.selected True else option
+
+
+tabItems list photographers = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            case extract (Tab.unTabs item) of
+                Tab.MainTab -> do
+                    element list # set children [] #+ (mkTabs item)
+                    return x
+                        #  set children []
+                        #+ [element list, element photographers]
+                _ -> do
+                    element list # set children [] #+ (mkTabs item)
+                    return x # set children [] #+ [element list]
 
 --------------------------------------------------------------------------------
 
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
-    _       <- return win # set title "FF"
-    content <- UI.p # set text "bob"
-    elem    <- entry bPhotographers
-    elem2   <- listBox bPhotographers
+    _              <- return win # set title "FF"
+
+    elem           <- entry bPhotographers
+    (elem2, elem3) <- tabsBox bTabs bPhotographers
 
     let eElem = _photographersTE elem
     _ <- onEvent eElem $ \item -> do
@@ -222,7 +300,13 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
 
-    void $ UI.getBody win #+ [element elem, element elem2]
+    let eElem3 = filterJust $ rumors $ _tabsPB elem3
+    _ <- onEvent eElem3 $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteTabs item)
+
+
+    void $ UI.getBody win #+ [element elem, element elem2, element elem3]
 
     _               <- liftIO $ runApp env setupStartMap
     _               <- liftIO $ runApp env startStartMap
@@ -231,6 +315,8 @@ setup env@Env {..} win = mdo
     messageReceiver <- liftIO $ forkIO $ runApp env (receiveMessages win)
 
     UI.on UI.disconnect win $ const $ liftIO $ do
+        --HashMap ti list and kill all
+        --HashMap ti list and kill all
         --HashMap ti list and kill all
         killThread messageReceiver
         return ()
@@ -243,6 +329,8 @@ type WithChan r m
       , Has WatchManager r
       , Has HPhotographers r
       , Has MPhotographersFile r
+      , Has HTabs r
+      , Has MTabsFile r
       , Has (MStartMap m) r
       , Has MStopMap r
       , Has OutChan r
@@ -256,21 +344,29 @@ setupStartMap :: forall  r m . WithChan r m => m ()
 setupStartMap = do
     mStartMap <- unMStartMap <$> grab @(MStartMap m)
     startMap  <- takeMVar mStartMap
-    let key         = "photographers"
-    let watcher     = Watchers.photographersFile
-    let newStartMap = HashMap.insert key watcher startMap
-    putMVar mStartMap newStartMap
+
+    let key          = "photographers"
+    let watcher      = Watchers.photographersFile
+    let newStartMap  = HashMap.insert key watcher startMap
+
+    let key2         = "tabs"
+    let watcher2     = Watchers.tabsFile
+    let newStartMap2 = HashMap.insert key2 watcher2 newStartMap
+
+    putMVar mStartMap newStartMap2
 
 
 read :: forall  r m . WithChan r m => m ()
 read = do
     inChan <- unInChan <$> grab @InChan
     liftIO $ Chan.writeChan inChan Message.ReadPhotographers
+    liftIO $ Chan.writeChan inChan Message.ReadTabs
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
     inChan <- unInChan <$> grab @InChan
     liftIO $ Chan.writeChan inChan Message.StartPhotograpers
+    liftIO $ Chan.writeChan inChan Message.StartTabs
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -310,26 +406,75 @@ receiveMessages window = do
 
             Message.ReadPhotographers -> do
                 traceShowM "wtf"
-                mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+                mPhotographersFile <-
+                    unMPhotographersFile <$> grab @MPhotographersFile
                 photographersFile <- takeMVar mPhotographersFile
                 traceShowM "wtf3"
-                runIt window photographersFile mPhotographersFile `E.catchError` (\e -> do
-                    hPhotographers <- unHPhotographers <$> grab @HPhotographers
-                    liftIO $ hPhotographers $ Model.Failure (show e)
-                    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
-                    traceShowM "wtf5"
-                    putMVar mPhotographersFile photographersFile
-                    traceShowM "wtf6"
-                                                            )
+                runIt window photographersFile mPhotographersFile
+                    `E.catchError` (\e -> do
+                                       hPhotographers <-
+                                           unHPhotographers
+                                               <$> grab @HPhotographers
+                                       liftIO $ hPhotographers $ Data.Failure
+                                           (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mPhotographersFile
+                                               photographersFile
+                                       traceShowM "wtf6"
+                                   )
+--------------------------------------------------------------------------------
+            Message.StopTabs -> do
+                return ()
 
-runIt :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+            Message.WriteTabs tabs -> do
+                mTabsFile <- unMTabsFile <$> grab @MTabsFile
+                tabsFile  <- takeMVar mTabsFile
+                _         <- Tab.writeTabs tabsFile tabs
+                _         <- putMVar mTabsFile tabsFile
+                _         <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartTabs -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "tabs"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadTabs -> do
+                traceShowM "wtf"
+                mTabsFile <- unMTabsFile <$> grab @MTabsFile
+                tabsFile  <- takeMVar mTabsFile
+                traceShowM "wtf3"
+                runIt2 window tabsFile mTabsFile
+                    `E.catchError` (\e -> do
+                                       hTabs <- unHTabs <$> grab @HTabs
+                                       liftIO $ hTabs $ Data.Failure (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mTabsFile tabsFile
+                                       traceShowM "wtf6"
+                                   )
+
+
+runIt
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
 runIt window photographersFile mPhotographersFile = do
-    photographers     <- getPhotographers photographersFile
+    photographers <- getPhotographers photographersFile
     traceShowM "wtf4"
 
     hPhotographers <- unHPhotographers <$> grab @HPhotographers
 
-    liftIO $ hPhotographers $ Model.Data photographers
+    liftIO $ hPhotographers $ Data.Data photographers
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
     putMVar mPhotographersFile photographersFile
     traceShowM "wtf2"
@@ -337,14 +482,38 @@ runIt window photographersFile mPhotographersFile = do
 
 --type WithIOError m = MonadError AppError m
 getPhotographers
-    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Photographer.Photographers
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m Photographer.Photographers
 getPhotographers fp =
     readJSONFile fp
         `catchIOError` (\e -> do
-                           if isUserError e then
-                                E.throwError (InternalError $ ServerError (show e))
-                            else
-                                E.throwError (InternalError $ WTF)
-                        )
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+
+runIt2
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt2 window tabsFile mTabsFile = do
+    tabs  <- getTabs tabsFile
+    hTabs <- unHTabs <$> grab @HTabs
+    liftIO $ hTabs $ Data.Data tabs
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mTabsFile tabsFile
+
+
+--type WithIOError m = MonadError AppError m
+getTabs :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Tab.Tabs
+getTabs fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
 
 

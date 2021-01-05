@@ -32,9 +32,9 @@ library
       Lib.App.Monad
       Lib.Config
       Lib.Message
-      Lib.Model
       Lib.Model.Data
       Lib.Model.Photographer
+      Lib.Model.Tab
       Lib.Server
       Lib.Watchers
       Prelude

@@ -3,11 +3,17 @@ module Lib.Message
     )
 where
 
-import Lib.Model
+import qualified Lib.Model.Photographer as Photographer
+import qualified Lib.Model.Tab as Tab
 
 data Message
     = ReadPhotographers
-    | WritePhographers Photographers
+    | WritePhographers Photographer.Photographers
     | StartPhotograpers
     | StopPhotographers
+
+    | ReadTabs
+    | WriteTabs Tab.Tabs
+    | StartTabs
+    | StopTabs
         deriving Show
