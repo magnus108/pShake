@@ -306,7 +306,7 @@ setup env@Env {..} win = mdo
                                        (Message.WriteTabs item)
 
 
-    void $ UI.getBody win #+ [element elem, element elem2, element elem3]
+    void $ UI.getBody win #+ [element elem, element elem3]
 
     _               <- liftIO $ runApp env setupStartMap
     _               <- liftIO $ runApp env startStartMap
