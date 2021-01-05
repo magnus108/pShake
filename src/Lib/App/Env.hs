@@ -12,6 +12,8 @@ module Lib.App.Env
     , MPhotographersFile(..)
     , HTabs(..)
     , MTabsFile(..)
+    , HShootings(..)
+    , MShootingsFile(..)
     , grab
     )
 where
@@ -23,6 +25,7 @@ import qualified Reactive.Threepenny           as Reactive
 import qualified System.FSNotify               as FS
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
+import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
@@ -38,7 +41,7 @@ data Env (m :: Type -> Type) = Env
     , mDoneshootingFile :: !(MVar FilePath)
     , mDagsdatoFile :: !(MVar FilePath)
     , mDagsdatoBackupFile :: !(MVar FilePath)
-    , mShootingsFile :: !(MVar FilePath)
+    , mShootingsFile :: MShootingsFile
     , mSessionsFile :: !(MVar FilePath)
     , mPhotographersFile :: MPhotographersFile
     , mGradesFile :: !(MVar FilePath)
@@ -78,8 +81,10 @@ data Env (m :: Type -> Type) = Env
     , hPhotographers :: HPhotographers
     , eCameras :: !(Reactive.Event ())
     , hCameras :: !(Reactive.Handler ())
-    , eShootings :: !(Reactive.Event ())
-    , hShootings :: !(Reactive.Handler ())
+
+    , eShootings :: !(Reactive.Event (Data.Data String Shooting.Shootings))
+    , hShootings :: HShootings
+
     , eSessions :: !(Reactive.Event ())
     , hSessions :: !(Reactive.Handler ())
     , eGrades :: !(Reactive.Event ())
@@ -94,6 +99,8 @@ data Env (m :: Type -> Type) = Env
     , bPhotographers :: !(Reactive.Behavior (Data.Data String Photographer.Photographers))
 
     , bTabs :: !(Reactive.Behavior (Data.Data String Tab.Tabs))
+
+    , bShootings :: !(Reactive.Behavior (Data.Data String Shooting.Shootings))
 
     , watchManager :: WatchManager
     }
@@ -110,6 +117,10 @@ newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler (
 
 newtype MTabsFile = MTabsFile { unMTabsFile :: MVar FilePath }
 newtype HTabs = HTabs { unHTabs :: Reactive.Handler (Data.Data String Tab.Tabs) }
+
+
+newtype MShootingsFile = MShootingsFile { unMShootingsFile :: MVar FilePath }
+newtype HShootings = HShootings { unHShootings :: Reactive.Handler (Data.Data String Shooting.Shootings) }
 
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
 
@@ -144,6 +155,11 @@ instance Has MTabsFile              (Env m) where
 instance Has HTabs             (Env m) where
     obtain = hTabs
 
+instance Has MShootingsFile              (Env m) where
+    obtain = mShootingsFile
+
+instance Has HShootings             (Env m) where
+    obtain = hShootings
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field

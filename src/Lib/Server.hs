@@ -47,6 +47,8 @@ import           Lib.App                        ( runApp
                                                 , MPhotographersFile(..)
                                                 , HTabs(..)
                                                 , MTabsFile(..)
+                                                , HShootings(..)
+                                                , MShootingsFile(..)
                                                 , MStartMap(..)
                                                 , WatchManager(..)
                                                 , MStopMap(..)
@@ -56,6 +58,8 @@ import           Lib.App                        ( runApp
                                                 , unHPhotographers
                                                 , unMTabsFile
                                                 , unHTabs
+                                                , unMShootingsFile
+                                                , unHShootings
                                                 , unMStopMap
                                                 , unMStartMap
                                                 , unOutChan
@@ -68,6 +72,7 @@ import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
 import qualified Lib.Model.Tab                 as Tab
+import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Data                as Data
 
@@ -134,6 +139,79 @@ setName photographers name = case Photographer.unPhotographers photographers of
     ListZipper.ListZipper ls x rs ->
         Photographer.Photographers
             $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
+
+-----------------------------------------------------------------------------
+data ShootingsBox a = ShootingsBox
+    { _elementShootingPB   :: Element
+    , _shootingsPB :: !(Tidings (Maybe Shooting.Shootings))
+    }
+
+instance Widget (ShootingsBox a) where
+    getElement = _elementShootingPB
+
+listBoxShootings
+    :: Behavior (Data.Data String Shooting.Shootings)
+    -> UI (ShootingsBox a)
+listBoxShootings bitems = do
+    _elementShootingPB <- UI.div
+    list       <- UI.select
+
+    element _elementShootingPB # sink (itemsShooting list) bitems
+
+    bb <- Reactive.stepper Nothing UI.never
+
+    let _shootingsPB =
+            tidings (Data.toJust <$> bitems)
+                $   selectShootingF
+                <$> (Data.toJust <$> bitems)
+                <@> (filterJust (UI.selectionChange list))
+
+    return ShootingsBox { .. }
+
+
+selectShootingF
+    :: Maybe Shooting.Shootings
+    -> Int
+    -> Maybe Shooting.Shootings
+selectShootingF shootings selected = case shootings of
+    Nothing            -> Nothing
+    Just shootings -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
+        (\thisIndex shootings'' -> if selected == thisIndex
+            then Just (Shooting.Shootings shootings'')
+            else Nothing
+        )
+        (Shooting.unShootings shootings)
+
+
+mkShootings :: Shooting.Shootings -> [UI Element]
+mkShootings shootings' = do
+    let zipper = Shooting.unShootings shootings'
+    let elems = ListZipper.iextend
+            (\i shootings'' ->
+                (i, zipper == shootings'', extract shootings'')
+            )
+            zipper
+    fmap mkShootingListItem (ListZipper.toList elems)
+
+mkShootingListItem :: (Int, Bool, Shooting.Shooting) -> UI Element
+mkShootingListItem (thisIndex, isCenter, shooting) = do
+    let name'  = show shooting -- change 
+    let option = UI.option # set value (show thisIndex) # set text name'
+    if isCenter then option # set UI.selected True else option
+
+
+itemsShooting list = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            element list # set children [] #+ (mkShootings item)
+            return x # set children [] #+ [element list]
+
+--------------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
 data PhotographersBox a = PhotographersBox
@@ -218,14 +296,16 @@ instance Widget (TabsBox a) where
 tabsBox
     :: Behavior (Data.Data String Tab.Tabs)
     -> Behavior (Data.Data String Photographer.Photographers)
-    -> UI (PhotographersBox b, TabsBox a)
-tabsBox bitems bPhotographers = do
+    -> Behavior (Data.Data String Shooting.Shootings)
+    -> UI (PhotographersBox b, ShootingsBox c, TabsBox a)
+tabsBox bitems bPhotographers bShootings = do
     _tabsE <- UI.div
     list   <- UI.select
 
-    elem2  <- listBox bPhotographers
+    elemPhotographers <- listBox bPhotographers
+    elemShootings <- listBoxShootings bShootings
 
-    element _tabsE # sink (tabItems list elem2) bitems
+    element _tabsE # sink (tabItems list elemPhotographers elemShootings) bitems
 
     bb <- Reactive.stepper Nothing UI.never
 
@@ -235,7 +315,7 @@ tabsBox bitems bPhotographers = do
                 <$> (Data.toJust <$> bitems)
                 <@> (filterJust (UI.selectionChange list))
 
-    return (elem2, TabsBox { .. })
+    return (elemPhotographers, elemShootings, TabsBox { .. })
 
 
 selectTabF :: Maybe Tab.Tabs -> Int -> Maybe Tab.Tabs
@@ -263,7 +343,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers = mkWriteAttr $ \i x -> void $ do
+tabItems list photographers shootings = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
         Data.Loading   -> return x # set text "bobo"
@@ -275,8 +355,15 @@ tabItems list photographers = mkWriteAttr $ \i x -> void $ do
                 Tab.MainTab -> do
                     element list # set children [] #+ (mkTabs item)
                     return x
-                        #  set children []
+                        #  set children [] -- THIS IS DANGEROUS?
                         #+ [element list, element photographers]
+
+                Tab.ShootingsTab -> do
+                    element list # set children [] #+ (mkTabs item)
+                    return x
+                        #  set children []
+                        #+ [element list, element shootings]
+
                 _ -> do
                     element list # set children [] #+ (mkTabs item)
                     return x # set children [] #+ [element list]
@@ -288,15 +375,15 @@ setup env@Env {..} win = mdo
     _              <- return win # set title "FF"
 
     elem           <- entry bPhotographers
-    (elem2, elem3) <- tabsBox bTabs bPhotographers
+    (elemPhotographers, elemShootings, elem3) <- tabsBox bTabs bPhotographers bShootings
 
     let eElem = _photographersTE elem
     _ <- onEvent eElem $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
 
-    let eElem2 = filterJust $ rumors $ _photographersPB elem2
-    _ <- onEvent eElem2 $ \item -> do
+    let eElemPhotographers = filterJust $ rumors $ _photographersPB elemPhotographers
+    _ <- onEvent eElemPhotographers $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
 
@@ -331,6 +418,10 @@ type WithChan r m
       , Has MPhotographersFile r
       , Has HTabs r
       , Has MTabsFile r
+
+      , Has HShootings r
+      , Has MShootingsFile r
+
       , Has (MStartMap m) r
       , Has MStopMap r
       , Has OutChan r
@@ -353,7 +444,11 @@ setupStartMap = do
     let watcher2     = Watchers.tabsFile
     let newStartMap2 = HashMap.insert key2 watcher2 newStartMap
 
-    putMVar mStartMap newStartMap2
+    let key3         = "shootings"
+    let watcher3     = Watchers.shootingsFile
+    let newStartMap3 = HashMap.insert key3 watcher3 newStartMap2
+
+    putMVar mStartMap newStartMap3
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -361,12 +456,14 @@ read = do
     inChan <- unInChan <$> grab @InChan
     liftIO $ Chan.writeChan inChan Message.ReadPhotographers
     liftIO $ Chan.writeChan inChan Message.ReadTabs
+    liftIO $ Chan.writeChan inChan Message.ReadShootings
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
     inChan <- unInChan <$> grab @InChan
     liftIO $ Chan.writeChan inChan Message.StartPhotograpers
     liftIO $ Chan.writeChan inChan Message.StartTabs
+    liftIO $ Chan.writeChan inChan Message.StartShootings
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -464,6 +561,49 @@ receiveMessages window = do
                                        putMVar mTabsFile tabsFile
                                        traceShowM "wtf6"
                                    )
+--------------------------------------------------------------------------------
+            Message.StopShootings -> do
+                return ()
+
+            Message.WriteShootings shootings -> do
+                mShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
+                shootingsFile  <- takeMVar mShootingsFile
+                _              <- Shooting.writeShootings shootingsFile shootings
+                _              <- putMVar mShootingsFile shootingsFile
+                _              <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartShootings -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "shootings"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadShootings -> do
+                traceShowM "wtf"
+                mShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
+                shootingsFile  <- takeMVar mShootingsFile
+                traceShowM "wtf3"
+                runIt3 window shootingsFile mShootingsFile
+                    `E.catchError` (\e -> do
+                                       hShootings <-
+                                           unHShootings <$> grab @HShootings
+                                       liftIO $ hShootings $ Data.Failure
+                                           (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mShootingsFile shootingsFile
+                                       traceShowM "wtf6"
+                                   )
 
 
 runIt
@@ -517,3 +657,26 @@ getTabs fp =
                        )
 
 
+runIt3
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt3 window shootingsFile mShootingsFile = do
+    shootings  <- getShootings shootingsFile
+    hShootings <- unHShootings <$> grab @HShootings
+    liftIO $ hShootings $ Data.Data shootings
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mShootingsFile shootingsFile
+
+
+--type WithIOError m = MonadError AppError m
+getShootings
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m Shooting.Shootings
+getShootings fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )

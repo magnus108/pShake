@@ -1,6 +1,7 @@
 module Lib.Watchers
     ( photographersFile
     , tabsFile
+    , shootingsFile
     )
 where
 
@@ -11,10 +12,16 @@ import           Lib.App                        ( grab
                                                 , WatchManager
                                                 , MPhotographersFile
                                                 , MTabsFile
+
+                                                , MShootingsFile
+
                                                 , MStopMap
                                                 , MStartMap
                                                 , unMPhotographersFile
                                                 , unMTabsFile
+
+                                                , unMShootingsFile
+
                                                 , unInChan
                                                 , unWatchManager
                                                 )
@@ -25,7 +32,13 @@ import qualified Lib.Message                   as Message
 import qualified System.FilePath               as FP
 
 
-type WithEnv r m = (MonadReader r m, Has MPhotographersFile r, Has MTabsFile r, Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
+type WithEnv r m = (MonadReader r m
+  , Has MPhotographersFile r
+
+  , Has MTabsFile r
+  , Has MShootingsFile r
+
+  , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
 
 
 photographersFile :: WithEnv r m => m FS.StopListening
@@ -58,6 +71,23 @@ tabsFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadTabs
+            return ()
+        )
+    return stop
+
+shootingsFile :: WithEnv r m => m FS.StopListening
+shootingsFile = do
+    unMShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
+    file <- liftIO $ readMVar unMShootingsFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadShootings
             return ()
         )
     return stop

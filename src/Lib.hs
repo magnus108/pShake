@@ -8,6 +8,9 @@ import           Lib.App                        ( AppEnv
                                                 )
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
+
+import qualified Lib.Model.Shooting                 as Shooting
+
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -36,7 +39,10 @@ mkAppEnv port Config.Config {..} = do
     mDoneshootingFile   <- newMVar doneshootingFile
     mDagsdatoFile       <- newMVar dagsdatoFile
     mDagsdatoBackupFile <- newMVar dagsdatoBackupFile
-    mShootingsFile      <- newMVar shootingsFile
+
+    mShootingsFile' <- newMVar shootingsFile
+    let mShootingsFile = App.MShootingsFile mShootingsFile'
+
     mSessionsFile       <- newMVar sessionsFile
     mGradesFile         <- newMVar gradesFile
     mCamerasFile        <- newMVar camerasFile
@@ -65,12 +71,17 @@ mkAppEnv port Config.Config {..} = do
     (eConfigDagsdatoBackup, hConfigDagsdatoBackup) <- Reactive.newEvent
     (eDumpDir             , hDumpDir             ) <- Reactive.newEvent
     (eConfigDump          , hConfigDump          ) <- Reactive.newEvent
+
     (eTabs                , hTabs'               ) <- Reactive.newEvent
     let hTabs = App.HTabs hTabs'
+
     (ePhotographers, hPhotographers') <- Reactive.newEvent
     let hPhotographers = App.HPhotographers hPhotographers'
     (eCameras           , hCameras           ) <- Reactive.newEvent
-    (eShootings         , hShootings         ) <- Reactive.newEvent
+
+    (eShootings         , hShootings' ) <- Reactive.newEvent
+    let hShootings = App.HShootings hShootings'
+
     (eSessions          , hSessions          ) <- Reactive.newEvent
     (eGrades            , hGrades            ) <- Reactive.newEvent
     (eLocationConfigFile, hLocationConfigFile) <- Reactive.newEvent
@@ -88,6 +99,8 @@ mkAppEnv port Config.Config {..} = do
     bPhotographers <- Reactive.stepper Photographer.initalState ePhotographers
 
     bTabs          <- Reactive.stepper Tab.initalState eTabs
+
+    bShootings <- Reactive.stepper Shooting.initalState eShootings
 
     pure Env { .. }
 

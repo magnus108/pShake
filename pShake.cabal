@@ -34,6 +34,7 @@ library
       Lib.Message
       Lib.Model.Data
       Lib.Model.Photographer
+      Lib.Model.Shooting
       Lib.Model.Tab
       Lib.Server
       Lib.Watchers
