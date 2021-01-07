@@ -8,7 +8,10 @@ import qualified Lib.Model.Tab as Tab
 import qualified Lib.Model.Shooting as Shooting
 import qualified Lib.Model.Dump as Dump
 import qualified Lib.Model.Dagsdato as Dagsdato
+import qualified Lib.Model.DagsdatoBackup as DagsdatoBackup
+import qualified Lib.Model.Doneshooting as Doneshooting
 import qualified Lib.Model.Camera as Camera
+import qualified Lib.Model.Session as Session
 
 data Message
     = ReadPhotographers
@@ -26,6 +29,11 @@ data Message
     | StartShootings
     | StopShootings
 
+    | ReadSessions
+    | WriteSessions Session.Sessions
+    | StartSessions
+    | StopSessions
+
     | ReadCameras
     | WriteCameras Camera.Cameras
     | StartCameras
@@ -40,5 +48,15 @@ data Message
     | WriteDagsdato Dagsdato.Dagsdato
     | StartDagsdato
     | StopDagsdato
+
+    | ReadDoneshooting
+    | WriteDoneshooting Doneshooting.Doneshooting
+    | StartDoneshooting
+    | StopDoneshooting
+
+    | ReadDagsdatoBackup
+    | WriteDagsdatoBackup DagsdatoBackup.DagsdatoBackup
+    | StartDagsdatoBackup
+    | StopDagsdatoBackup
 
         deriving Show

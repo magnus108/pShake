@@ -10,18 +10,20 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
-
     , HDumpDir(..)
     , MDumpFile(..)
-
     , HDagsdatoDir(..)
     , MDagsdatoFile(..)
-
+    , HDagsdatoBackupDir(..)
+    , MDagsdatoBackupFile(..)
+    , HDoneshootingDir(..)
+    , MDoneshootingFile(..)
     , HTabs(..)
     , MTabsFile(..)
     , HShootings(..)
     , MShootingsFile(..)
-
+    , HSessions(..)
+    , MSessionsFile(..)
     , HCameras(..)
     , MCamerasFile(..)
     , grab
@@ -37,8 +39,11 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.Camera                as Camera
-import qualified Lib.Model.Dagsdato                as Dagsdato
+import qualified Lib.Model.Camera              as Camera
+import qualified Lib.Model.Dagsdato            as Dagsdato
+import qualified Lib.Model.Session             as Session
+import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
+import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
@@ -51,11 +56,11 @@ data Env (m :: Type -> Type) = Env
     , outChan :: OutChan
 
     , mDumpFile :: MDumpFile
-    , mDoneshootingFile :: !(MVar FilePath)
+    , mDoneshootingFile :: MDoneshootingFile
     , mDagsdatoFile :: MDagsdatoFile
-    , mDagsdatoBackupFile :: !(MVar FilePath)
+    , mDagsdatoBackupFile :: MDagsdatoBackupFile
     , mShootingsFile :: MShootingsFile
-    , mSessionsFile :: !(MVar FilePath)
+    , mSessionsFile :: MSessionsFile
     , mPhotographersFile :: MPhotographersFile
     , mGradesFile :: !(MVar FilePath)
     , mCamerasFile :: MCamerasFile
@@ -72,16 +77,17 @@ data Env (m :: Type -> Type) = Env
     , static :: !FilePath
     , index :: !FilePath
 
-    , eDirDoneshooting :: !(Reactive.Event ())
-    , hDirDoneshooting :: !(Reactive.Handler ())
+    , eDoneshootingDir :: !(Reactive.Event (Data.Data String Doneshooting.Doneshooting))
+    , hDoneshootingDir :: HDoneshootingDir
+
     , eConfigDoneshooting :: !(Reactive.Event ())
     , hConfigDoneshooting :: !(Reactive.Handler ())
     , eDagsdatoDir :: !(Reactive.Event (Data.Data String Dagsdato.Dagsdato))
     , hDagsdatoDir :: HDagsdatoDir
     , eConfigDagsdato :: !(Reactive.Event ())
     , hConfigDagsdato :: !(Reactive.Handler ())
-    , eDirDagsdatoBackup :: !(Reactive.Event ())
-    , hDirDagsdatoBackup :: !(Reactive.Handler ())
+    , eDagsdatoBackupDir :: !(Reactive.Event (Data.Data String DagsdatoBackup.DagsdatoBackup))
+    , hDagsdatoBackupDir :: HDagsdatoBackupDir
     , eConfigDagsdatoBackup :: !(Reactive.Event ())
     , hConfigDagsdatoBackup :: !(Reactive.Handler ())
     , eDumpDir :: !(Reactive.Event (Data.Data String Dump.Dump))
@@ -98,8 +104,8 @@ data Env (m :: Type -> Type) = Env
     , eShootings :: !(Reactive.Event (Data.Data String Shooting.Shootings))
     , hShootings :: HShootings
 
-    , eSessions :: !(Reactive.Event ())
-    , hSessions :: !(Reactive.Handler ())
+    , eSessions :: !(Reactive.Event (Data.Data String Session.Sessions))
+    , hSessions :: HSessions
     , eGrades :: !(Reactive.Event ())
     , hGrades :: !(Reactive.Handler ())
     , eLocationConfigFile :: !(Reactive.Event ())
@@ -114,12 +120,17 @@ data Env (m :: Type -> Type) = Env
     , bTabs :: !(Reactive.Behavior (Data.Data String Tab.Tabs))
 
     , bShootings :: !(Reactive.Behavior (Data.Data String Shooting.Shootings))
-    
+    , bSessions :: !(Reactive.Behavior (Data.Data String Session.Sessions))
+
     , bCameras :: !(Reactive.Behavior (Data.Data String Camera.Cameras))
 
     , bDumpDir :: !(Reactive.Behavior (Data.Data String Dump.Dump))
 
     , bDagsdatoDir :: !(Reactive.Behavior (Data.Data String Dagsdato.Dagsdato))
+
+    , bDagsdatoBackupDir :: !(Reactive.Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup))
+
+    , bDoneshootingDir :: !(Reactive.Behavior (Data.Data String Doneshooting.Doneshooting))
 
     , watchManager :: WatchManager
     }
@@ -137,6 +148,8 @@ newtype HPhotographers = HPhotographers { unHPhotographers :: Reactive.Handler (
 newtype MTabsFile = MTabsFile { unMTabsFile :: MVar FilePath }
 newtype HTabs = HTabs { unHTabs :: Reactive.Handler (Data.Data String Tab.Tabs) }
 
+newtype MSessionsFile = MSessionsFile { unMSessionsFile :: MVar FilePath }
+newtype HSessions = HSessions { unHSessions :: Reactive.Handler (Data.Data String Session.Sessions) }
 
 newtype MShootingsFile = MShootingsFile { unMShootingsFile :: MVar FilePath }
 newtype HShootings = HShootings { unHShootings :: Reactive.Handler (Data.Data String Shooting.Shootings) }
@@ -149,6 +162,12 @@ newtype HDumpDir = HDumpDir { unHDumpDir :: Reactive.Handler (Data.Data String D
 
 newtype MDagsdatoFile = MDagsdatoFile { unMDagsdatoFile :: MVar FilePath }
 newtype HDagsdatoDir = HDagsdatoDir { unHDagsdatoDir :: Reactive.Handler (Data.Data String Dagsdato.Dagsdato) }
+
+newtype MDagsdatoBackupFile = MDagsdatoBackupFile { unMDagsdatoBackupFile :: MVar FilePath }
+newtype HDagsdatoBackupDir = HDagsdatoBackupDir { unHDagsdatoBackupDir :: Reactive.Handler (Data.Data String DagsdatoBackup.DagsdatoBackup) }
+
+newtype MDoneshootingFile = MDoneshootingFile { unMDoneshootingFile :: MVar FilePath }
+newtype HDoneshootingDir = HDoneshootingDir { unHDoneshootingDir :: Reactive.Handler (Data.Data String Doneshooting.Doneshooting) }
 
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
 
@@ -189,6 +208,12 @@ instance Has MShootingsFile              (Env m) where
 instance Has HShootings             (Env m) where
     obtain = hShootings
 
+instance Has MSessionsFile              (Env m) where
+    obtain = mSessionsFile
+
+instance Has HSessions             (Env m) where
+    obtain = hSessions
+
 instance Has MCamerasFile              (Env m) where
     obtain = mCamerasFile
 
@@ -206,6 +231,18 @@ instance Has MDagsdatoFile              (Env m) where
 
 instance Has HDagsdatoDir             (Env m) where
     obtain = hDagsdatoDir
+
+instance Has MDagsdatoBackupFile              (Env m) where
+    obtain = mDagsdatoBackupFile
+
+instance Has HDagsdatoBackupDir             (Env m) where
+    obtain = hDagsdatoBackupDir
+
+instance Has MDoneshootingFile              (Env m) where
+    obtain = mDoneshootingFile
+
+instance Has HDoneshootingDir             (Env m) where
+    obtain = hDoneshootingDir
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field

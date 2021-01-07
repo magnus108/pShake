@@ -2,8 +2,11 @@ module Lib.Watchers
     ( photographersFile
     , tabsFile
     , shootingsFile
+    , sessionsFile
     , dumpFile
     , dagsdatoFile
+    , dagsdatoBackupFile
+    , doneshootingFile
     , camerasFile
     )
 where
@@ -16,10 +19,13 @@ import           Lib.App                        ( grab
                                                 , MPhotographersFile
                                                 , MTabsFile
 
+                                                , MSessionsFile
                                                 , MShootingsFile
                                                 , MCamerasFile
                                                 , MDumpFile
                                                 , MDagsdatoFile
+                                                , MDagsdatoBackupFile
+                                                , MDoneshootingFile
 
                                                 , MStopMap
                                                 , MStartMap
@@ -27,9 +33,12 @@ import           Lib.App                        ( grab
                                                 , unMTabsFile
 
                                                 , unMShootingsFile
+                                                , unMSessionsFile
                                                 , unMCamerasFile
                                                 , unMDumpFile
                                                 , unMDagsdatoFile
+                                                , unMDagsdatoBackupFile
+                                                , unMDoneshootingFile
 
                                                 , unInChan
                                                 , unWatchManager
@@ -46,11 +55,14 @@ type WithEnv r m = (MonadReader r m
 
   , Has MTabsFile r
   , Has MShootingsFile r
+  , Has MSessionsFile r
   , Has MCamerasFile r
 
   , Has MDumpFile r
 
   , Has MDagsdatoFile r
+  , Has MDagsdatoBackupFile r
+  , Has MDoneshootingFile r
 
   , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
 
@@ -126,6 +138,24 @@ shootingsFile = do
     return stop
 
 
+sessionsFile :: WithEnv r m => m FS.StopListening
+sessionsFile = do
+    unMSessionsFile <- unMSessionsFile <$> grab @MSessionsFile
+    file <- liftIO $ readMVar unMSessionsFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadSessions
+            return ()
+        )
+    return stop
+
+
 dumpFile :: WithEnv r m => m FS.StopListening
 dumpFile = do
     unMDumpFile <- unMDumpFile <$> grab @MDumpFile
@@ -160,3 +190,39 @@ dagsdatoFile = do
             return ()
         )
     return stop
+
+dagsdatoBackupFile :: WithEnv r m => m FS.StopListening
+dagsdatoBackupFile = do
+    unMDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
+    file <- liftIO $ readMVar unMDagsdatoBackupFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadDagsdatoBackup
+            return ()
+        )
+    return stop
+
+
+doneshootingFile :: WithEnv r m => m FS.StopListening
+doneshootingFile = do
+    unMDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
+    file <- liftIO $ readMVar unMDoneshootingFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadDoneshooting
+            return ()
+        )
+    return stop
+
