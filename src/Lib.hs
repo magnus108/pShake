@@ -12,6 +12,8 @@ import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 
 import qualified Lib.Model.Dump                as Dump
+import qualified Lib.Model.Dagsdato                as Dagsdato
+import qualified Lib.Model.Camera                as Camera
 
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
@@ -41,7 +43,9 @@ mkAppEnv port Config.Config {..} = do
     let mDumpFile = App.MDumpFile mDumpFile'
 
     mDoneshootingFile   <- newMVar doneshootingFile
-    mDagsdatoFile       <- newMVar dagsdatoFile
+    mDagsdatoFile' <- newMVar dagsdatoFile
+    let mDagsdatoFile = App.MDagsdatoFile mDagsdatoFile'
+
     mDagsdatoBackupFile <- newMVar dagsdatoBackupFile
 
     mShootingsFile'     <- newMVar shootingsFile
@@ -49,7 +53,9 @@ mkAppEnv port Config.Config {..} = do
 
     mSessionsFile <- newMVar sessionsFile
     mGradesFile   <- newMVar gradesFile
-    mCamerasFile  <- newMVar camerasFile
+
+    mCamerasFile' <- newMVar camerasFile
+    let mCamerasFile = App.MCamerasFile mCamerasFile'
 
     mTabsFile'    <- newMVar tabsFile
     let mTabsFile = App.MTabsFile mTabsFile'
@@ -69,7 +75,9 @@ mkAppEnv port Config.Config {..} = do
 
     (eDirDoneshooting     , hDirDoneshooting     ) <- Reactive.newEvent
     (eConfigDoneshooting  , hConfigDoneshooting  ) <- Reactive.newEvent
-    (eDirDagsdato         , hDirDagsdato         ) <- Reactive.newEvent
+    (eDagsdatoDir , hDagsdatoDir' ) <- Reactive.newEvent
+    let hDagsdatoDir = App.HDagsdatoDir hDagsdatoDir'
+
     (eConfigDagsdato      , hConfigDagsdato      ) <- Reactive.newEvent
     (eDirDagsdatoBackup   , hDirDagsdatoBackup   ) <- Reactive.newEvent
     (eConfigDagsdatoBackup, hConfigDagsdatoBackup) <- Reactive.newEvent
@@ -84,7 +92,8 @@ mkAppEnv port Config.Config {..} = do
 
     (ePhotographers, hPhotographers') <- Reactive.newEvent
     let hPhotographers = App.HPhotographers hPhotographers'
-    (eCameras  , hCameras   ) <- Reactive.newEvent
+    (eCameras  , hCameras' ) <- Reactive.newEvent
+    let hCameras = App.HCameras hCameras'
 
     (eShootings, hShootings') <- Reactive.newEvent
     let hShootings = App.HShootings hShootings'
@@ -109,7 +118,11 @@ mkAppEnv port Config.Config {..} = do
 
     bShootings     <- Reactive.stepper Shooting.initalState eShootings
 
+    bCameras     <- Reactive.stepper Camera.initalState eCameras
+
     bDumpDir     <- Reactive.stepper Dump.initalState eDumpDir
+
+    bDagsdatoDir <- Reactive.stepper Dagsdato.initalState eDagsdatoDir
 
     pure Env { .. }
 

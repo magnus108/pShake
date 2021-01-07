@@ -32,6 +32,8 @@ library
       Lib.App.Monad
       Lib.Config
       Lib.Message
+      Lib.Model.Camera
+      Lib.Model.Dagsdato
       Lib.Model.Data
       Lib.Model.Dump
       Lib.Model.Photographer

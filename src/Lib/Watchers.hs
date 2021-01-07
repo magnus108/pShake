@@ -3,6 +3,8 @@ module Lib.Watchers
     , tabsFile
     , shootingsFile
     , dumpFile
+    , dagsdatoFile
+    , camerasFile
     )
 where
 
@@ -15,7 +17,9 @@ import           Lib.App                        ( grab
                                                 , MTabsFile
 
                                                 , MShootingsFile
+                                                , MCamerasFile
                                                 , MDumpFile
+                                                , MDagsdatoFile
 
                                                 , MStopMap
                                                 , MStartMap
@@ -23,7 +27,9 @@ import           Lib.App                        ( grab
                                                 , unMTabsFile
 
                                                 , unMShootingsFile
+                                                , unMCamerasFile
                                                 , unMDumpFile
+                                                , unMDagsdatoFile
 
                                                 , unInChan
                                                 , unWatchManager
@@ -40,7 +46,11 @@ type WithEnv r m = (MonadReader r m
 
   , Has MTabsFile r
   , Has MShootingsFile r
+  , Has MCamerasFile r
+
   , Has MDumpFile r
+
+  , Has MDagsdatoFile r
 
   , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
 
@@ -79,6 +89,25 @@ tabsFile = do
         )
     return stop
 
+
+camerasFile :: WithEnv r m => m FS.StopListening
+camerasFile = do
+    unMCamerasFile <- unMCamerasFile <$> grab @MCamerasFile
+    file <- liftIO $ readMVar unMCamerasFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadCameras
+            return ()
+        )
+    return stop
+
+
 shootingsFile :: WithEnv r m => m FS.StopListening
 shootingsFile = do
     unMShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
@@ -110,6 +139,24 @@ dumpFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadDump
+            return ()
+        )
+    return stop
+
+
+dagsdatoFile :: WithEnv r m => m FS.StopListening
+dagsdatoFile = do
+    unMDagsdatoFile <- unMDagsdatoFile <$> grab @MDagsdatoFile
+    file <- liftIO $ readMVar unMDagsdatoFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadDagsdato
             return ()
         )
     return stop
