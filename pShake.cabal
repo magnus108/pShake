@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.2.
+-- This file has been generated from package.yaml by hpack version 0.34.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -38,6 +38,7 @@ library
       Lib.Model.Data
       Lib.Model.Doneshooting
       Lib.Model.Dump
+      Lib.Model.Location
       Lib.Model.Photographer
       Lib.Model.Session
       Lib.Model.Shooting

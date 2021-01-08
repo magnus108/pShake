@@ -22,7 +22,7 @@ data Config = Config
     , gradesFile :: !FilePath
     , camerasFile :: !FilePath
     , tabsFile :: !FilePath
-    , locationConfigFile :: !FilePath
+    , locationFile :: !FilePath
     , translationFile :: !FilePath
     , photograheesFile :: !FilePath
     , buildFile :: !FilePath

@@ -62,6 +62,9 @@ import           Lib.App                        ( runApp
                                                 , HSessions(..)
                                                 , MSessionsFile(..)
 
+                                                , HLocationFile(..)
+                                                , MLocationFile(..)
+
                                                 , HCameras(..)
                                                 , MCamerasFile(..)
                                                 , MStartMap(..)
@@ -101,6 +104,7 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup            as DagsdatoBackup
+import qualified Lib.Model.Location            as Location
 
 
 data PhotographerEntry = PhotographerEntry
@@ -245,14 +249,42 @@ listBoxSessions bitems = do
     _elementSessionsPB <- UI.div
     list               <- UI.select
 
-    element _elementSessionsPB # sink (itemsSession list) bitems
+    item <- Reactive.currentValue bitems
 
+    case item of
+        Data.NotAsked  -> element _elementSessionsPB # set text "Not Asked"
+        Data.Loading   -> element _elementSessionsPB # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            element _elementSessionsPB # set children [] #+ [element err]
+        Data.Data item -> do
+            element list # set children [] #+ (mkSessions item)
+            element _elementSessionsPB # set children [] #+ [element list]
+
+    window <- askWindow
+    
+    bEditing <- stepper False $ and <$> unions
+        [True <$ UI.focus list, False <$ UI.blur list]
+
+    liftIOLater $ Reactive.onChange bitems $ \s -> runUI window $ do
+        case s of
+            Data.NotAsked  -> void $ element _elementSessionsPB # set text "Not Asked"
+            Data.Loading   -> void $ element _elementSessionsPB # set text "bobo"
+            Data.Failure e -> do
+                err <- string (show e)
+                void $ element _elementSessionsPB # set children [] #+ [element err]
+            Data.Data item -> void $ do
+                editing <- liftIO $ currentValue bEditing
+                when (not editing) $ void $ do
+                    element list # set children [] #+ (mkSessions item)
+                    element _elementSessionsPB # set children [] #+ [element list]
 
     let _sessionsPB =
             tidings (Data.toJust <$> bitems)
                 $   selectSessionF
                 <$> (Data.toJust <$> bitems)
                 <@> (filterJust (UI.selectionChange list))
+
 
     return SessionsBox { .. }
 
@@ -467,7 +499,8 @@ dumpItem folderPicker = mkWriteAttr $ \i x -> void $ do
         Data.Loading   -> return x # set text "bobo"
         Data.Failure e -> do
             err <- string (show e)
-            return x # set children [] #+ [element err]
+            element folderPicker # set children [] #+ [UI.p # set text "ny"]
+            return x # set children [] #+ [element err, element folderPicker]
         Data.Data item -> do
             element folderPicker # set children [] #+ [mkFolderPicker item]
             return x # set children [] #+ [element folderPicker]
@@ -620,6 +653,53 @@ mkFolderPicker4 dagsdatoBackup = do
 
 
 --------------------------------------------------------------------------------
+data LocationBox a = LocationBox
+    { _elementLocationPB   :: Element
+    , _locationPB :: !(Tidings (Maybe Location.Location))
+    }
+
+instance Widget (LocationBox a) where
+    getElement = _elementLocationPB
+
+
+
+listBoxLocation
+    :: Behavior (Data.Data String Location.Location) -> UI (LocationBox a)
+listBoxLocation bitems = do
+    _elementLocationPB <- UI.div
+
+    selector           <- UI.button
+
+    element _elementLocationPB # sink (locationItem selector) bitems
+
+
+    let _locationPB = -- NOT SURE ABOUT ANY OF THIS SHITE.
+            tidings (Data.toJust <$> bitems)
+                $  (Data.toJust <$> bitems)
+                <@ UI.click selector
+
+    return LocationBox { .. }
+
+
+
+locationItem filePicker = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            element filePicker # set children [] #+ [mkFilePicker5 item]
+            return x # set children [] #+ [element filePicker]
+
+mkFilePicker5 :: Location.Location -> UI Element
+mkFilePicker5 location = do
+    let name' = Location.unLocation location
+    UI.p # set text name'
+
+
+--------------------------------------------------------------------------------
 
 
 data TabsBox a = TabsBox
@@ -640,6 +720,7 @@ tabsBox
     -> Behavior (Data.Data String Doneshooting.Doneshooting)
     -> Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup)
     -> Behavior (Data.Data String Session.Sessions)
+    -> Behavior (Data.Data String Location.Location)
     -> UI
            ( PhotographersBox b
            , ShootingsBox c
@@ -649,9 +730,10 @@ tabsBox
            , DoneshootingBox f
            , DagsdatoBackupBox e
            , SessionsBox g
+           , LocationBox h
            , TabsBox a
            )
-tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions= do
+tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation= do
     _tabsE            <- UI.div
     list              <- UI.select
 
@@ -663,6 +745,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
     elemDoneshooting <- listBoxDoneshooting bDoneshooting
     elemDagsdatoBackup <- listBoxDagsdatoBackup bDagsdatoBackup
     elemSessions <- listBoxSessions bSessions
+    elemLocation <- listBoxLocation bLocation
 
     element _tabsE
         # sink
@@ -675,6 +758,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                         elemDoneshooting
                         elemDagsdatoBackup
                         elemSessions
+                        elemLocation
               )
               bTabs
 
@@ -694,6 +778,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         , elemDoneshooting
         , elemDagsdatoBackup
         , elemSessions
+        , elemLocation
         , TabsBox { .. }
         )
 
@@ -723,7 +808,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions = mkWriteAttr $ \i x ->
+tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location = mkWriteAttr $ \i x ->
     void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
@@ -744,6 +829,12 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                         return x
                             #  set children []
                             #+ [element list, element shootings]
+
+                    Tab.LocationTab -> do
+                        element list # set children [] #+ (mkTabs item)
+                        return x
+                            #  set children []
+                            #+ [element list, element location]
 
                     Tab.SessionsTab -> do
                         element list # set children [] #+ (mkTabs item)
@@ -803,7 +894,7 @@ setup env@Env {..} win = mdo
     _    <- return win # set title "FF"
 
     elem <- entry bPhotographers
-    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions,elem3) <- tabsBox
+    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation,elem3) <- tabsBox
         bTabs
         bPhotographers
         bShootings
@@ -813,6 +904,7 @@ setup env@Env {..} win = mdo
         bDoneshootingDir
         bDagsdatoBackupDir
         bSessions
+        bLocationFile
 
 
     let eElemPhotographers =
@@ -841,7 +933,7 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback <- ffiExport fx
-    let eElemDump = filterJust $ rumors $ _dumpPB elemDump
+    let eElemDump = rumors $ _dumpPB elemDump
     _ <- onEvent eElemDump $ \item -> do
         runFunction $ example ["openDirectory"] callback
 
@@ -881,6 +973,19 @@ setup env@Env {..} win = mdo
     _ <- onEvent eElemDagsdatoBackup $ \item -> do
         runFunction $ example ["openDirectory"] callback4
 
+    ------------------------------------------------------------------------------
+    let fx5 =
+            (\f -> when (f /= "") $ liftIO $ void $ Chan.writeChan
+                (unInChan inChan)
+                (Message.WriteLocation (Location.Location f))
+            ) :: FilePath -> IO ()
+
+    callback5 <- ffiExport fx5
+    let eElemLocation = filterJust $ rumors $ _locationPB elemLocation
+    _ <- onEvent eElemLocation $ \item -> do
+        runFunction $ example ["openFile"] callback5
+
+    ------------------------------------------------------------------------------
 
     let eElem3 = filterJust $ rumors $ _tabsPB elem3
     _ <- onEvent eElem3 $ \item -> do
@@ -925,6 +1030,10 @@ type WithChan r m
       , Has MCamerasFile r
       , Has HDumpDir r
       , Has MDumpFile r
+
+      , Has HLocationFile r
+      , Has MLocationFile r
+
       , Has HDagsdatoDir r
       , Has MDagsdatoFile r
       , Has HDagsdatoBackupDir r
@@ -982,7 +1091,11 @@ setupStartMap = do
     let watcher9 = Watchers.sessionsFile
     let newStartMap9 = HashMap.insert key9 watcher9 newStartMap8
 
-    putMVar mStartMap newStartMap9
+    let key10 = "location"
+    let watcher10 = Watchers.locationFile
+    let newStartMap10 = HashMap.insert key10 watcher10 newStartMap9
+
+    putMVar mStartMap newStartMap10
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -997,6 +1110,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadCameras
     liftIO $ Chan.writeChan inChan Message.ReadDoneshooting
     liftIO $ Chan.writeChan inChan Message.ReadDagsdatoBackup
+    liftIO $ Chan.writeChan inChan Message.ReadLocation
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
@@ -1010,6 +1124,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartCameras
     liftIO $ Chan.writeChan inChan Message.StartDoneshooting
     liftIO $ Chan.writeChan inChan Message.StartDagsdatoBackup
+    liftIO $ Chan.writeChan inChan Message.StartLocation
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -1407,9 +1522,51 @@ receiveMessages window = do
                                        putMVar mSessionsFile sessionsFile
                                        traceShowM "wtf6"
                                    )
+--------------------------------------------------------------------------------
+            Message.StopLocation -> do
+                return ()
+
+            Message.WriteLocation location -> do
+                mLocationFile <- unMLocationFile <$> grab @MLocationFile
+                locationFile  <- takeMVar mLocationFile
+                _            <- Location.writeLocation locationFile location
+                _            <- putMVar mLocationFile locationFile
+                _            <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartLocation-> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "location"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadLocation -> do
+                traceShowM "wtf"
+                mLocationFile <- unMLocationFile <$> grab @MLocationFile
+                locationFile  <- takeMVar mLocationFile
+                traceShowM "wtf3"
+                runIt10 window locationFile mLocationFile
+                    `E.catchError` (\e -> do
+                                       hLocationFile <- unHLocationFile <$> grab @HLocationFile
+                                       liftIO $ hLocationFile $ Data.Failure (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mLocationFile locationFile
+                                       traceShowM "wtf6"
+                                   )
 
 
 --------------------------------------------------------------------------------
+
 
 
 runIt
@@ -1612,6 +1769,28 @@ runIt9 window sessionsFile mSessionsFile = do
 getSessions
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Session.Sessions
 getSessions fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+runIt10
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt10 window locationFile mLocationFile = do
+    location     <- getLocation locationFile
+    hLocation <- unHLocationFile <$> grab @HLocationFile
+    liftIO $ hLocation $ Data.Data location
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mLocationFile locationFile
+
+
+--type WithIOError m = MonadError AppError m
+getLocation
+    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Location.Location
+getLocation fp =
     readJSONFile fp
         `catchIOError` (\e -> do
                            if isUserError e

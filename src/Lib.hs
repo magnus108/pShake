@@ -10,13 +10,14 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 
 import qualified Lib.Model.Shooting            as Shooting
-import qualified Lib.Model.Session            as Session
+import qualified Lib.Model.Session             as Session
 
+import qualified Lib.Model.Location            as Location
 import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.Dagsdato                as Dagsdato
-import qualified Lib.Model.DagsdatoBackup                as DagsdatoBackup
-import qualified Lib.Model.Doneshooting                as Doneshooting
-import qualified Lib.Model.Camera                as Camera
+import qualified Lib.Model.Dagsdato            as Dagsdato
+import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
+import qualified Lib.Model.Doneshooting        as Doneshooting
+import qualified Lib.Model.Camera              as Camera
 
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
@@ -55,7 +56,7 @@ mkAppEnv port Config.Config {..} = do
     mDagsdatoBackupFile' <- newMVar dagsdatoBackupFile
     let mDagsdatoBackupFile = App.MDagsdatoBackupFile mDagsdatoBackupFile'
 
-    mShootingsFile'     <- newMVar shootingsFile
+    mShootingsFile' <- newMVar shootingsFile
     let mShootingsFile = App.MShootingsFile mShootingsFile'
 
     mSessionsFile' <- newMVar sessionsFile
@@ -66,15 +67,17 @@ mkAppEnv port Config.Config {..} = do
     mCamerasFile' <- newMVar camerasFile
     let mCamerasFile = App.MCamerasFile mCamerasFile'
 
-    mTabsFile'    <- newMVar tabsFile
+    mTabsFile' <- newMVar tabsFile
     let mTabsFile = App.MTabsFile mTabsFile'
 
-    mLocationConfigFile <- newMVar locationConfigFile
-    mTranslationFile    <- newMVar translationFile
-    mPhotograheesFile   <- newMVar photograheesFile
-    mBuildFile          <- newMVar buildFile
+    mLocationFile' <- newMVar locationFile
+    let mLocationFile = App.MLocationFile mLocationFile'
 
-    mStopMap'           <- newMVar mempty
+    mTranslationFile  <- newMVar translationFile
+    mPhotograheesFile <- newMVar photograheesFile
+    mBuildFile        <- newMVar buildFile
+
+    mStopMap'         <- newMVar mempty
     let mStopMap = App.MStopMap mStopMap'
     mStartMap' <- newMVar mempty
     let mStartMap = App.MStartMap mStartMap'
@@ -82,46 +85,49 @@ mkAppEnv port Config.Config {..} = do
     let static    = "static"
     let index     = "index.html"
 
-    (eDoneshootingDir , hDoneshootingDir'     ) <- Reactive.newEvent
+    (eDoneshootingDir, hDoneshootingDir') <- Reactive.newEvent
     let hDoneshootingDir = App.HDoneshootingDir hDoneshootingDir'
 
-    (eConfigDoneshooting  , hConfigDoneshooting  ) <- Reactive.newEvent
+    (eConfigDoneshooting, hConfigDoneshooting) <- Reactive.newEvent
 
-    (eDagsdatoDir , hDagsdatoDir' ) <- Reactive.newEvent
+    (eDagsdatoDir       , hDagsdatoDir'      ) <- Reactive.newEvent
     let hDagsdatoDir = App.HDagsdatoDir hDagsdatoDir'
 
-    (eConfigDagsdato      , hConfigDagsdato      ) <- Reactive.newEvent
-    (eDagsdatoBackupDir   , hDagsdatoBackupDir' ) <- Reactive.newEvent
+    (eConfigDagsdato   , hConfigDagsdato    ) <- Reactive.newEvent
+    (eDagsdatoBackupDir, hDagsdatoBackupDir') <- Reactive.newEvent
     let hDagsdatoBackupDir = App.HDagsdatoBackupDir hDagsdatoBackupDir'
 
     (eConfigDagsdatoBackup, hConfigDagsdatoBackup) <- Reactive.newEvent
 
-    (eDumpDir             , hDumpDir'             ) <- Reactive.newEvent
+    (eDumpDir             , hDumpDir'            ) <- Reactive.newEvent
     let hDumpDir = App.HDumpDir hDumpDir'
 
-    (eConfigDump          , hConfigDump          ) <- Reactive.newEvent
+    (eConfigDump, hConfigDump) <- Reactive.newEvent
 
-    (eTabs                , hTabs'               ) <- Reactive.newEvent
+    (eTabs      , hTabs'     ) <- Reactive.newEvent
     let hTabs = App.HTabs hTabs'
 
     (ePhotographers, hPhotographers') <- Reactive.newEvent
     let hPhotographers = App.HPhotographers hPhotographers'
 
-    (eCameras  , hCameras' ) <- Reactive.newEvent
+    (eCameras, hCameras') <- Reactive.newEvent
     let hCameras = App.HCameras hCameras'
 
     (eShootings, hShootings') <- Reactive.newEvent
     let hShootings = App.HShootings hShootings'
 
-    (eSessions          , hSessions'          ) <- Reactive.newEvent
+    (eSessions, hSessions') <- Reactive.newEvent
     let hSessions = App.HSessions hSessions'
 
-    (eGrades            , hGrades            ) <- Reactive.newEvent
-    (eLocationConfigFile, hLocationConfigFile) <- Reactive.newEvent
-    (ePhotographees     , hPhotographees     ) <- Reactive.newEvent
-    (eBuild             , hBuild             ) <- Reactive.newEvent
+    (eGrades      , hGrades       ) <- Reactive.newEvent
 
-    watchManager'                              <- FS.startManagerConf
+    (eLocationFile, hLocationFile') <- Reactive.newEvent
+    let hLocationFile = App.HLocationFile hLocationFile'
+
+    (ePhotographees, hPhotographees) <- Reactive.newEvent
+    (eBuild        , hBuild        ) <- Reactive.newEvent
+
+    watchManager'                    <- FS.startManagerConf
         (FS.defaultConfig
             { FS.confDebounce = FS.Debounce
                                     (Clock.secondsToNominalDiffTime 0.0000001)
@@ -131,21 +137,25 @@ mkAppEnv port Config.Config {..} = do
 
     bPhotographers <- Reactive.stepper Photographer.initalState ePhotographers
 
-    bTabs          <- Reactive.stepper Tab.initalState eTabs
+    bTabs              <- Reactive.stepper Tab.initalState eTabs
 
-    bShootings     <- Reactive.stepper Shooting.initalState eShootings
+    bShootings         <- Reactive.stepper Shooting.initalState eShootings
 
-    bSessions     <- Reactive.stepper Session.initalState eSessions
+    bSessions          <- Reactive.stepper Session.initalState eSessions
 
-    bCameras     <- Reactive.stepper Camera.initalState eCameras
+    bCameras           <- Reactive.stepper Camera.initalState eCameras
 
-    bDumpDir     <- Reactive.stepper Dump.initalState eDumpDir
+    bDumpDir           <- Reactive.stepper Dump.initalState eDumpDir
 
-    bDagsdatoDir <- Reactive.stepper Dagsdato.initalState eDagsdatoDir
+    bDagsdatoDir       <- Reactive.stepper Dagsdato.initalState eDagsdatoDir
 
-    bDagsdatoBackupDir <- Reactive.stepper DagsdatoBackup.initalState eDagsdatoBackupDir
+    bDagsdatoBackupDir <- Reactive.stepper DagsdatoBackup.initalState
+                                           eDagsdatoBackupDir
 
-    bDoneshootingDir <- Reactive.stepper Doneshooting.initalState eDoneshootingDir
+    bDoneshootingDir <- Reactive.stepper Doneshooting.initalState
+                                         eDoneshootingDir
+
+    bLocationFile <- Reactive.stepper Location.initalState eLocationFile
 
     pure Env { .. }
 

@@ -10,6 +10,10 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
+
+    , HLocationFile(..)
+    , MLocationFile(..)
+
     , HDumpDir(..)
     , MDumpFile(..)
     , HDagsdatoDir(..)
@@ -44,6 +48,7 @@ import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
+import qualified Lib.Model.Location        as Location
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
@@ -65,7 +70,7 @@ data Env (m :: Type -> Type) = Env
     , mGradesFile :: !(MVar FilePath)
     , mCamerasFile :: MCamerasFile
     , mTabsFile :: MTabsFile
-    , mLocationConfigFile :: !(MVar FilePath)
+    , mLocationFile :: MLocationFile
     , mTranslationFile :: !(MVar FilePath)
     , mPhotograheesFile :: !(MVar FilePath)
     , mBuildFile :: !(MVar FilePath)
@@ -108,8 +113,8 @@ data Env (m :: Type -> Type) = Env
     , hSessions :: HSessions
     , eGrades :: !(Reactive.Event ())
     , hGrades :: !(Reactive.Handler ())
-    , eLocationConfigFile :: !(Reactive.Event ())
-    , hLocationConfigFile :: !(Reactive.Handler ())
+    , eLocationFile :: !(Reactive.Event (Data.Data String Location.Location))
+    , hLocationFile :: HLocationFile
     , ePhotographees :: !(Reactive.Event ())
     , hPhotographees :: !(Reactive.Handler ())
     , eBuild :: !(Reactive.Event ())
@@ -127,6 +132,8 @@ data Env (m :: Type -> Type) = Env
     , bDumpDir :: !(Reactive.Behavior (Data.Data String Dump.Dump))
 
     , bDagsdatoDir :: !(Reactive.Behavior (Data.Data String Dagsdato.Dagsdato))
+
+    , bLocationFile :: !(Reactive.Behavior (Data.Data String Location.Location))
 
     , bDagsdatoBackupDir :: !(Reactive.Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup))
 
@@ -159,6 +166,9 @@ newtype HCameras = HCameras { unHCameras :: Reactive.Handler (Data.Data String C
 
 newtype MDumpFile = MDumpFile { unMDumpFile :: MVar FilePath }
 newtype HDumpDir = HDumpDir { unHDumpDir :: Reactive.Handler (Data.Data String Dump.Dump) }
+
+newtype MLocationFile = MLocationFile { unMLocationFile :: MVar FilePath }
+newtype HLocationFile = HLocationFile { unHLocationFile :: Reactive.Handler (Data.Data String Location.Location) }
 
 newtype MDagsdatoFile = MDagsdatoFile { unMDagsdatoFile :: MVar FilePath }
 newtype HDagsdatoDir = HDagsdatoDir { unHDagsdatoDir :: Reactive.Handler (Data.Data String Dagsdato.Dagsdato) }
@@ -243,6 +253,12 @@ instance Has MDoneshootingFile              (Env m) where
 
 instance Has HDoneshootingDir             (Env m) where
     obtain = hDoneshootingDir
+
+instance Has MLocationFile              (Env m) where
+    obtain = mLocationFile
+
+instance Has HLocationFile             (Env m) where
+    obtain = hLocationFile
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field

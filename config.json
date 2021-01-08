@@ -9,7 +9,7 @@
 , "camerasFile":"cameras.json"
 , "tabsFile":"tabs.json"
 , "gradesFile":"grades.json"
-, "locationConfigFile":"locationConfig.json"
+, "locationFile":"location.json"
 , "translationFile":"translation.json"
 , "buildFile":"build.json"
 }

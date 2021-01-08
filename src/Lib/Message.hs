@@ -12,6 +12,7 @@ import qualified Lib.Model.DagsdatoBackup as DagsdatoBackup
 import qualified Lib.Model.Doneshooting as Doneshooting
 import qualified Lib.Model.Camera as Camera
 import qualified Lib.Model.Session as Session
+import qualified Lib.Model.Location as Location
 
 data Message
     = ReadPhotographers
@@ -59,4 +60,8 @@ data Message
     | StartDagsdatoBackup
     | StopDagsdatoBackup
 
+    | ReadLocation
+    | WriteLocation Location.Location
+    | StartLocation
+    | StopLocation
         deriving Show
