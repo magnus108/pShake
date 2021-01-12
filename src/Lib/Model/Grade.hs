@@ -8,7 +8,11 @@ module Lib.Model.Grade
     , Grades(..)
     , photographees
     , gradeId
-    , getGrades , writeGrades
+    , getGrades
+    , writeGrades
+    , sys
+    , name
+    , tid
     , initalState
     )
 where
