@@ -11,6 +11,9 @@ module Lib.App.Env
     , HPhotographers(..)
     , MPhotographersFile(..)
 
+    , HGrades(..)
+    , MGradesFile(..)
+
     , HLocationFile(..)
     , MLocationFile(..)
 
@@ -48,6 +51,7 @@ import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
+import qualified Lib.Model.Grade        as Grade
 import qualified Lib.Model.Location        as Location
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
@@ -67,12 +71,11 @@ data Env (m :: Type -> Type) = Env
     , mShootingsFile :: MShootingsFile
     , mSessionsFile :: MSessionsFile
     , mPhotographersFile :: MPhotographersFile
-    , mGradesFile :: !(MVar FilePath)
+    , mGradesFile :: MGradesFile
     , mCamerasFile :: MCamerasFile
     , mTabsFile :: MTabsFile
     , mLocationFile :: MLocationFile
     , mTranslationFile :: !(MVar FilePath)
-    , mPhotograheesFile :: !(MVar FilePath)
     , mBuildFile :: !(MVar FilePath)
 
     , mStopMap :: MStopMap
@@ -111,8 +114,8 @@ data Env (m :: Type -> Type) = Env
 
     , eSessions :: !(Reactive.Event (Data.Data String Session.Sessions))
     , hSessions :: HSessions
-    , eGrades :: !(Reactive.Event ())
-    , hGrades :: !(Reactive.Handler ())
+    , eGrades :: !(Reactive.Event (Data.Data String Grade.Grades))
+    , hGrades :: HGrades
     , eLocationFile :: !(Reactive.Event (Data.Data String Location.Location))
     , hLocationFile :: HLocationFile
     , ePhotographees :: !(Reactive.Event ())
@@ -134,6 +137,7 @@ data Env (m :: Type -> Type) = Env
     , bDagsdatoDir :: !(Reactive.Behavior (Data.Data String Dagsdato.Dagsdato))
 
     , bLocationFile :: !(Reactive.Behavior (Data.Data String Location.Location))
+    , bGrades :: !(Reactive.Behavior (Data.Data String Grade.Grades))
 
     , bDagsdatoBackupDir :: !(Reactive.Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup))
 
@@ -157,6 +161,9 @@ newtype HTabs = HTabs { unHTabs :: Reactive.Handler (Data.Data String Tab.Tabs) 
 
 newtype MSessionsFile = MSessionsFile { unMSessionsFile :: MVar FilePath }
 newtype HSessions = HSessions { unHSessions :: Reactive.Handler (Data.Data String Session.Sessions) }
+
+newtype MGradesFile = MGradesFile { unMGradesFile :: MVar FilePath }
+newtype HGrades = HGrades { unHGrades :: Reactive.Handler (Data.Data String Grade.Grades) }
 
 newtype MShootingsFile = MShootingsFile { unMShootingsFile :: MVar FilePath }
 newtype HShootings = HShootings { unHShootings :: Reactive.Handler (Data.Data String Shooting.Shootings) }
@@ -205,6 +212,12 @@ instance Has MPhotographersFile              (Env m) where
 
 instance Has HPhotographers             (Env m) where
     obtain = hPhotographers
+
+instance Has MGradesFile              (Env m) where
+    obtain = mGradesFile
+
+instance Has HGrades             (Env m) where
+    obtain = hGrades
 
 instance Has MTabsFile              (Env m) where
     obtain = mTabsFile

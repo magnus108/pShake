@@ -20,6 +20,7 @@ import qualified Control.Monad.Except          as E
                                                 ( catchError
                                                 , throwError
                                                 )
+import qualified Relude.Unsafe as Unsafe
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Message                   as Message
 import           Utils.Comonad
@@ -46,6 +47,8 @@ import           Lib.App                        ( runApp
                                                 , Has(..)
                                                 , HPhotographers(..)
                                                 , MPhotographersFile(..)
+                                                , HGrades(..)
+                                                , MGradesFile(..)
                                                 , HDumpDir(..)
                                                 , MDumpFile(..)
                                                 , HDoneshootingDir(..)
@@ -58,13 +61,10 @@ import           Lib.App                        ( runApp
                                                 , MTabsFile(..)
                                                 , HShootings(..)
                                                 , MShootingsFile(..)
-
                                                 , HSessions(..)
                                                 , MSessionsFile(..)
-
                                                 , HLocationFile(..)
                                                 , MLocationFile(..)
-
                                                 , HCameras(..)
                                                 , MCamerasFile(..)
                                                 , MStartMap(..)
@@ -74,11 +74,12 @@ import           Lib.App                        ( runApp
                                                 , InChan(..)
                                                 , unMPhotographersFile
                                                 , unHPhotographers
+                                                , unMGradesFile
+                                                , unHGrades
                                                 , unMTabsFile
                                                 , unHTabs
                                                 , unMShootingsFile
                                                 , unHShootings
-
                                                 , unMSessionsFile
                                                 , unHSessions
                                                 , unMCamerasFile
@@ -94,16 +95,17 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
-import qualified Lib.Model.Doneshooting              as Doneshooting
+import qualified Lib.Model.Grade               as Grade
+import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dump                as Dump
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
-import qualified Lib.Model.Session            as Session
+import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Model.Dagsdato            as Dagsdato
-import qualified Lib.Model.DagsdatoBackup            as DagsdatoBackup
+import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Location            as Location
 
 
@@ -235,6 +237,180 @@ itemsShooting list = mkWriteAttr $ \i x -> void $ do
             return x # set children [] #+ [element list]
 
 --------------------------------------------------------------------------------
+data GradeInputEntry = GradeInputEntry
+    { _elementGradeInputTE :: !Element
+    , _gradeInputTE    :: !(Event Grade.Grades)
+    }
+
+instance Widget GradeInputEntry where
+    getElement = _elementGradeInputTE
+
+
+entryGradeInput
+    :: Behavior (Data.Data String Grade.Grades) -> UI GradeInputEntry
+entryGradeInput bValue = do
+    content      <- UI.div
+    input        <- UI.input
+
+    buttonInsert <- UI.button # set text "insert"
+
+    bEditing     <- stepper False $ and <$> unions
+        [True <$ UI.focus input, False <$ UI.blur input]
+
+    item <- Reactive.currentValue bValue
+    case item of
+        Data.Data item -> do
+            void $ element input # set
+                value
+                (extract (Grade.unGrades item) ^. Grade.gradeId)
+        _ -> return ()
+
+    window <- askWindow
+
+    liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
+        case s of
+            Data.NotAsked  -> void $ element content # set text "Not Asked"
+            Data.Loading   -> void $ element content # set text "bobo"
+            Data.Failure e -> do
+                err <- string (show e)
+                void $ element content # set children [] #+ [element err]
+            Data.Data item -> do
+                editing <- liftIO $ currentValue bEditing
+                when (not editing) $ void $ do
+                    element input # set
+                        value
+                        (extract (Grade.unGrades item) ^. Grade.gradeId)
+                    element content # set children [] #+ [element input, element buttonInsert]
+
+
+    let eClick               = filterJust $ mkNewGrade <$> (Data.toJust <$> bValue) <@ UI.click buttonInsert
+
+    let _elementGradeInputTE = content
+    let gradeInputTE1 =
+            filterJust
+                $   flap
+                .   fmap setNameGrade
+                <$> Data.toJust
+                <$> bValue
+                <@> UI.valueChange input
+    let lol = unions [eClick, gradeInputTE1]
+    let _gradeInputTE = Unsafe.head <$> lol
+
+    return GradeInputEntry { .. }
+
+setNameGrade :: Grade.Grades -> String -> Grade.Grades
+setNameGrade grades gradeId = case Grade.unGrades grades of
+    ListZipper.ListZipper ls x rs -> Grade.Grades
+        $ ListZipper.ListZipper ls (x & Grade.gradeId .~ gradeId) rs
+
+mkNewGrade :: Maybe Grade.Grades -> Maybe Grade.Grades
+mkNewGrade grades' = case grades' of
+                       Nothing -> Nothing
+                       Just zs ->
+                           let 
+                                (ListZipper.ListZipper xs x ys) = Grade.unGrades zs
+                           in
+                                Just $ Grade.Grades $ ListZipper.ListZipper xs (Grade.Grade "" (Grade.Photographees $ ListZipper.ListZipper [] (Grade.Photographee "" "" "") []))  (x:ys)
+
+-----------------------------------------------------------------------------
+data GradesBox a = GradesBox
+    { _elementGradesPB   :: Element
+    , _gradesPB :: !(Tidings (Maybe Grade.Grades))
+    }
+
+instance Widget (GradesBox a) where
+    getElement = _elementGradesPB
+
+listBoxGrades :: Behavior (Data.Data String Grade.Grades) -> UI (GradesBox a)
+listBoxGrades bitems = do
+    _elementGradesPB <- UI.div
+    list             <- UI.select
+
+    item             <- Reactive.currentValue bitems
+
+    case item of
+        Data.NotAsked  -> element _elementGradesPB # set text "Not Asked"
+        Data.Loading   -> element _elementGradesPB # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            element _elementGradesPB # set children [] #+ [element err]
+        Data.Data item -> do
+            element list # set children [] #+ (mkGrades item)
+            element _elementGradesPB # set children [] #+ [element list]
+
+    window   <- askWindow
+
+    bEditing <- stepper False $ and <$> unions
+        [True <$ UI.focus list, False <$ UI.blur list]
+
+    liftIOLater $ Reactive.onChange bitems $ \s -> runUI window $ do
+        case s of
+            Data.NotAsked ->
+                void $ element _elementGradesPB # set text "Not Asked"
+            Data.Loading   -> void $ element _elementGradesPB # set text "bobo"
+            Data.Failure e -> do
+                err <- string (show e)
+                void
+                    $  element _elementGradesPB
+                    #  set children []
+                    #+ [element err]
+            Data.Data item -> void $ do
+                editing <- liftIO $ currentValue bEditing
+                when (not editing) $ void $ do
+                    element list # set children [] #+ (mkGrades item)
+                    element _elementGradesPB # set children [] #+ [element list]
+
+    let _gradesPB =
+            tidings (Data.toJust <$> bitems)
+                $   selectGradeF
+                <$> (Data.toJust <$> bitems)
+                <@> (filterJust (UI.selectionChange list))
+
+
+    return GradesBox { .. }
+
+
+selectGradeF :: Maybe Grade.Grades -> Int -> Maybe Grade.Grades
+selectGradeF grades selected = case grades of
+    Nothing     -> Nothing
+    Just grades -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
+        (\thisIndex grades'' -> if selected == thisIndex
+            then Just (Grade.Grades grades'')
+            else Nothing
+        )
+        (Grade.unGrades grades)
+
+
+mkGrades :: Grade.Grades -> [UI Element]
+mkGrades grades' = do
+    let zipper = Grade.unGrades grades'
+    let elems = ListZipper.iextend
+            (\i grades'' -> (i, zipper == grades'', extract grades''))
+            zipper
+    fmap mkGradeListItem (ListZipper.toList elems)
+
+
+mkGradeListItem :: (Int, Bool, Grade.Grade) -> UI Element
+mkGradeListItem (thisIndex, isCenter, grade) = do
+    let name'  = grade ^. Grade.gradeId -- change 
+    let option = UI.option # set value (show thisIndex) # set text name'
+    if isCenter then option # set UI.selected True else option
+
+
+itemsGrade list = mkWriteAttr $ \i x -> void $ do
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            element list # set children [] #+ (mkGrades item)
+            return x # set children [] #+ [element list]
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 data SessionsBox a = SessionsBox
     { _elementSessionsPB   :: Element
     , _sessionsPB :: !(Tidings (Maybe Session.Sessions))
@@ -249,7 +425,7 @@ listBoxSessions bitems = do
     _elementSessionsPB <- UI.div
     list               <- UI.select
 
-    item <- Reactive.currentValue bitems
+    item               <- Reactive.currentValue bitems
 
     case item of
         Data.NotAsked  -> element _elementSessionsPB # set text "Not Asked"
@@ -261,23 +437,29 @@ listBoxSessions bitems = do
             element list # set children [] #+ (mkSessions item)
             element _elementSessionsPB # set children [] #+ [element list]
 
-    window <- askWindow
-    
+    window   <- askWindow
+
     bEditing <- stepper False $ and <$> unions
         [True <$ UI.focus list, False <$ UI.blur list]
 
     liftIOLater $ Reactive.onChange bitems $ \s -> runUI window $ do
         case s of
-            Data.NotAsked  -> void $ element _elementSessionsPB # set text "Not Asked"
-            Data.Loading   -> void $ element _elementSessionsPB # set text "bobo"
+            Data.NotAsked ->
+                void $ element _elementSessionsPB # set text "Not Asked"
+            Data.Loading -> void $ element _elementSessionsPB # set text "bobo"
             Data.Failure e -> do
                 err <- string (show e)
-                void $ element _elementSessionsPB # set children [] #+ [element err]
+                void
+                    $  element _elementSessionsPB
+                    #  set children []
+                    #+ [element err]
             Data.Data item -> void $ do
                 editing <- liftIO $ currentValue bEditing
                 when (not editing) $ void $ do
                     element list # set children [] #+ (mkSessions item)
-                    element _elementSessionsPB # set children [] #+ [element list]
+                    element _elementSessionsPB
+                        #  set children []
+                        #+ [element list]
 
     let _sessionsPB =
             tidings (Data.toJust <$> bitems)
@@ -291,7 +473,7 @@ listBoxSessions bitems = do
 
 selectSessionF :: Maybe Session.Sessions -> Int -> Maybe Session.Sessions
 selectSessionF sessions selected = case sessions of
-    Nothing        -> Nothing
+    Nothing       -> Nothing
     Just sessions -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
         (\thisIndex sessions'' -> if selected == thisIndex
             then Just (Session.Sessions sessions'')
@@ -343,7 +525,7 @@ listBoxCameras
     :: Behavior (Data.Data String Camera.Cameras) -> UI (CamerasBox a)
 listBoxCameras bitems = do
     _elementCamerasPB <- UI.div
-    list               <- UI.select
+    list              <- UI.select
 
     element _elementCamerasPB # sink (itemsCamera list) bitems
 
@@ -359,7 +541,7 @@ listBoxCameras bitems = do
 
 selectCameraF :: Maybe Camera.Cameras -> Int -> Maybe Camera.Cameras
 selectCameraF cameras selected = case cameras of
-    Nothing        -> Nothing
+    Nothing      -> Nothing
     Just cameras -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
         (\thisIndex cameras'' -> if selected == thisIndex
             then Just (Camera.Cameras cameras'')
@@ -523,11 +705,12 @@ instance Widget (DoneshootingBox a) where
 
 
 listBoxDoneshooting
-    :: Behavior (Data.Data String Doneshooting.Doneshooting) -> UI (DoneshootingBox a)
+    :: Behavior (Data.Data String Doneshooting.Doneshooting)
+    -> UI (DoneshootingBox a)
 listBoxDoneshooting bitems = do
     _elementDoneshootingPB <- UI.div
 
-    selector           <- UI.button
+    selector               <- UI.button
 
     element _elementDoneshootingPB # sink (doneshootingItem selector) bitems
 
@@ -617,11 +800,12 @@ instance Widget (DagsdatoBackupBox a) where
 
 
 listBoxDagsdatoBackup
-    :: Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup) -> UI (DagsdatoBackupBox a)
+    :: Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup)
+    -> UI (DagsdatoBackupBox a)
 listBoxDagsdatoBackup bitems = do
     _elementDagsdatoBackupPB <- UI.div
 
-    selector           <- UI.button
+    selector                 <- UI.button
 
     element _elementDagsdatoBackupPB # sink (dagsdatoBackupItem selector) bitems
 
@@ -718,9 +902,11 @@ tabsBox
     -> Behavior (Data.Data String Dagsdato.Dagsdato)
     -> Behavior (Data.Data String Camera.Cameras)
     -> Behavior (Data.Data String Doneshooting.Doneshooting)
-    -> Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup)
+    -> Behavior
+           (Data.Data String DagsdatoBackup.DagsdatoBackup)
     -> Behavior (Data.Data String Session.Sessions)
     -> Behavior (Data.Data String Location.Location)
+    -> Behavior (Data.Data String Grade.Grades)
     -> UI
            ( PhotographersBox b
            , ShootingsBox c
@@ -731,56 +917,65 @@ tabsBox
            , DagsdatoBackupBox e
            , SessionsBox g
            , LocationBox h
+           , GradesBox i
+           , GradeInputEntry
            , TabsBox a
            )
-tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation= do
-    _tabsE            <- UI.div
-    list              <- UI.select
+tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades
+    = do
+        _tabsE             <- UI.div
+        list               <- UI.select
 
-    elemPhotographers <- listBox bPhotographers
-    elemShootings     <- listBoxShootings bShootings
-    elemDump          <- listBoxDump bDump
-    elemDagsdato      <- listBoxDagsdato bDagsdato
-    elemCameras       <- listBoxCameras bCameras
-    elemDoneshooting <- listBoxDoneshooting bDoneshooting
-    elemDagsdatoBackup <- listBoxDagsdatoBackup bDagsdatoBackup
-    elemSessions <- listBoxSessions bSessions
-    elemLocation <- listBoxLocation bLocation
+        elemPhotographers  <- listBox bPhotographers
+        elemShootings      <- listBoxShootings bShootings
+        elemDump           <- listBoxDump bDump
+        elemDagsdato       <- listBoxDagsdato bDagsdato
+        elemCameras        <- listBoxCameras bCameras
+        elemDoneshooting   <- listBoxDoneshooting bDoneshooting
+        elemDagsdatoBackup <- listBoxDagsdatoBackup bDagsdatoBackup
+        elemSessions       <- listBoxSessions bSessions
+        elemLocation       <- listBoxLocation bLocation
+        elemGrades         <- listBoxGrades bGrades
+        elemGradesInput    <- entryGradeInput bGrades
 
-    element _tabsE
-        # sink
-              (tabItems list
-                        elemPhotographers
-                        elemShootings
-                        elemDump
-                        elemDagsdato
-                        elemCameras
-                        elemDoneshooting
-                        elemDagsdatoBackup
-                        elemSessions
-                        elemLocation
-              )
-              bTabs
+        element _tabsE
+            # sink
+                  (tabItems list
+                            elemPhotographers
+                            elemShootings
+                            elemDump
+                            elemDagsdato
+                            elemCameras
+                            elemDoneshooting
+                            elemDagsdatoBackup
+                            elemSessions
+                            elemLocation
+                            elemGrades
+                            elemGradesInput
+                  )
+                  bTabs
 
 
-    let _tabsPB =
-            tidings (Data.toJust <$> bTabs)
-                $   selectTabF
-                <$> (Data.toJust <$> bTabs)
-                <@> (filterJust (UI.selectionChange list))
+        let _tabsPB =
+                tidings (Data.toJust <$> bTabs)
+                    $   selectTabF
+                    <$> (Data.toJust <$> bTabs)
+                    <@> (filterJust (UI.selectionChange list))
 
-    return
-        ( elemPhotographers
-        , elemShootings
-        , elemDump
-        , elemDagsdato
-        , elemCameras
-        , elemDoneshooting
-        , elemDagsdatoBackup
-        , elemSessions
-        , elemLocation
-        , TabsBox { .. }
-        )
+        return
+            ( elemPhotographers
+            , elemShootings
+            , elemDump
+            , elemDagsdato
+            , elemCameras
+            , elemDoneshooting
+            , elemDagsdatoBackup
+            , elemSessions
+            , elemLocation
+            , elemGrades
+            , elemGradesInput
+            , TabsBox { .. }
+            )
 
 
 selectTabF :: Maybe Tab.Tabs -> Int -> Maybe Tab.Tabs
@@ -808,8 +1003,8 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location = mkWriteAttr $ \i x ->
-    void $ do
+tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput
+    = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
             Data.Loading   -> return x # set text "bobo"
@@ -834,7 +1029,11 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                         element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element location]
+                            #+ [ element list
+                               , element location
+                               , element grades
+                               , element gradesInput
+                               ]
 
                     Tab.SessionsTab -> do
                         element list # set children [] #+ (mkTabs item)
@@ -891,20 +1090,20 @@ example options callback = ffi
 
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
-    _    <- return win # set title "FF"
+    _ <- return win # set title "FF"
 
-    elem <- entry bPhotographers
-    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation,elem3) <- tabsBox
-        bTabs
-        bPhotographers
-        bShootings
-        bDumpDir
-        bDagsdatoDir
-        bCameras
-        bDoneshootingDir
-        bDagsdatoBackupDir
-        bSessions
-        bLocationFile
+    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elem3) <-
+        tabsBox bTabs
+                bPhotographers
+                bShootings
+                bDumpDir
+                bDagsdatoDir
+                bCameras
+                bDoneshootingDir
+                bDagsdatoBackupDir
+                bSessions
+                bLocationFile
+                bGrades
 
 
     let eElemPhotographers =
@@ -923,7 +1122,15 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteSessions item)
 
+    let eElemGrades = filterJust $ rumors $ _gradesPB elemGrades
+    _ <- onEvent eElemGrades $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteGrades item)
 
+    let eElemGradesInput = _gradeInputTE elemGradesInput
+    _ <- onEvent eElemGradesInput $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteGrades item)
 
 
     let fx =
@@ -957,19 +1164,24 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback3 <- ffiExport fx3
-    let eElemDoneshooting = filterJust $ rumors $ _doneshootingPB elemDoneshooting
+    let eElemDoneshooting =
+            filterJust $ rumors $ _doneshootingPB elemDoneshooting
     _ <- onEvent eElemDoneshooting $ \item -> do
         runFunction $ example ["openDirectory"] callback3
 
     ------------------------------------------------------------------------------
-    let fx4 =
+    let
+        fx4 =
             (\folder -> when (folder /= "") $ liftIO $ void $ Chan.writeChan
                 (unInChan inChan)
-                (Message.WriteDagsdatoBackup (DagsdatoBackup.DagsdatoBackup folder))
+                (Message.WriteDagsdatoBackup
+                    (DagsdatoBackup.DagsdatoBackup folder)
+                )
             ) :: FilePath -> IO ()
 
     callback4 <- ffiExport fx4
-    let eElemDagsdatoBackup = filterJust $ rumors $ _dagsdatoBackupPB elemDagsdatoBackup
+    let eElemDagsdatoBackup =
+            filterJust $ rumors $ _dagsdatoBackupPB elemDagsdatoBackup
     _ <- onEvent eElemDagsdatoBackup $ \item -> do
         runFunction $ example ["openDirectory"] callback4
 
@@ -1024,16 +1236,16 @@ type WithChan r m
       , Has MTabsFile r
       , Has HShootings r
       , Has MShootingsFile r
+      , Has HGrades r
+      , Has MGradesFile r
       , Has HSessions r
       , Has MSessionsFile r
       , Has HCameras r
       , Has MCamerasFile r
       , Has HDumpDir r
       , Has MDumpFile r
-
       , Has HLocationFile r
       , Has MLocationFile r
-
       , Has HDagsdatoDir r
       , Has MDagsdatoFile r
       , Has HDagsdatoBackupDir r
@@ -1054,48 +1266,52 @@ setupStartMap = do
     mStartMap <- unMStartMap <$> grab @(MStartMap m)
     startMap  <- takeMVar mStartMap
 
-    let key          = "photographers"
-    let watcher      = Watchers.photographersFile
-    let newStartMap  = HashMap.insert key watcher startMap
+    let key           = "photographers"
+    let watcher       = Watchers.photographersFile
+    let newStartMap   = HashMap.insert key watcher startMap
 
-    let key2         = "tabs"
-    let watcher2     = Watchers.tabsFile
+    let key2          = "tabs"
+    let watcher2      = Watchers.tabsFile
     let newStartMap2 = HashMap.insert key2 watcher2 newStartMap
 
-    let key3         = "shootings"
-    let watcher3     = Watchers.shootingsFile
+    let key3          = "shootings"
+    let watcher3      = Watchers.shootingsFile
     let newStartMap3 = HashMap.insert key3 watcher3 newStartMap2
 
-    let key4         = "dump"
-    let watcher4     = Watchers.dumpFile
+    let key4          = "dump"
+    let watcher4      = Watchers.dumpFile
     let newStartMap4 = HashMap.insert key4 watcher4 newStartMap3
 
-    let key5         = "dagsdato"
-    let watcher5     = Watchers.dagsdatoFile
+    let key5          = "dagsdato"
+    let watcher5      = Watchers.dagsdatoFile
     let newStartMap5 = HashMap.insert key5 watcher5 newStartMap4
 
-    let key6         = "cameras"
-    let watcher6     = Watchers.camerasFile
+    let key6          = "cameras"
+    let watcher6      = Watchers.camerasFile
     let newStartMap6 = HashMap.insert key6 watcher6 newStartMap5
 
-    let key7         = "doneshooting"
-    let watcher7     = Watchers.doneshootingFile
+    let key7          = "doneshooting"
+    let watcher7      = Watchers.doneshootingFile
     let newStartMap7 = HashMap.insert key7 watcher7 newStartMap6
 
 
-    let key8 = "dagsdatoBackup"
-    let watcher8     = Watchers.dagsdatoFile
+    let key8          = "dagsdatoBackup"
+    let watcher8      = Watchers.dagsdatoFile
     let newStartMap8 = HashMap.insert key8 watcher8 newStartMap7
 
-    let key9 = "sessions"
-    let watcher9 = Watchers.sessionsFile
+    let key9          = "sessions"
+    let watcher9      = Watchers.sessionsFile
     let newStartMap9 = HashMap.insert key9 watcher9 newStartMap8
 
-    let key10 = "location"
-    let watcher10 = Watchers.locationFile
+    let key10         = "location"
+    let watcher10     = Watchers.locationFile
     let newStartMap10 = HashMap.insert key10 watcher10 newStartMap9
 
-    putMVar mStartMap newStartMap10
+    let key11         = "grades"
+    let watcher11     = Watchers.gradesFile
+    let newStartMap11 = HashMap.insert key11 watcher11 newStartMap10
+
+    putMVar mStartMap newStartMap11
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -1111,6 +1327,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadDoneshooting
     liftIO $ Chan.writeChan inChan Message.ReadDagsdatoBackup
     liftIO $ Chan.writeChan inChan Message.ReadLocation
+    liftIO $ Chan.writeChan inChan Message.ReadGrades
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
@@ -1125,6 +1342,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartDoneshooting
     liftIO $ Chan.writeChan inChan Message.StartDagsdatoBackup
     liftIO $ Chan.writeChan inChan Message.StartLocation
+    liftIO $ Chan.writeChan inChan Message.StartGrades
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -1398,11 +1616,13 @@ receiveMessages window = do
                 return ()
 
             Message.WriteDoneshooting doneshooting -> do
-                mDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
-                doneshootingFile  <- takeMVar mDoneshootingFile
-                _             <- Doneshooting.writeDoneshooting doneshootingFile doneshooting
-                _             <- putMVar mDoneshootingFile doneshootingFile
-                _             <- liftIO $ runUI window $ do
+                mDoneshootingFile <-
+                    unMDoneshootingFile <$> grab @MDoneshootingFile
+                doneshootingFile <- takeMVar mDoneshootingFile
+                _ <- Doneshooting.writeDoneshooting doneshootingFile
+                                                    doneshooting
+                _ <- putMVar mDoneshootingFile doneshootingFile
+                _ <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()
 
@@ -1422,18 +1642,21 @@ receiveMessages window = do
 
             Message.ReadDoneshooting -> do
                 traceShowM "wtf"
-                mDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
-                doneshootingFile  <- takeMVar mDoneshootingFile
+                mDoneshootingFile <-
+                    unMDoneshootingFile <$> grab @MDoneshootingFile
+                doneshootingFile <- takeMVar mDoneshootingFile
                 traceShowM "wtf3"
                 runIt7 window doneshootingFile mDoneshootingFile
                     `E.catchError` (\e -> do
                                        hDoneshootingDir <-
-                                           unHDoneshootingDir <$> grab @HDoneshootingDir
+                                           unHDoneshootingDir
+                                               <$> grab @HDoneshootingDir
                                        liftIO $ hDoneshootingDir $ Data.Failure
                                            (show e)
                                        liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
                                        traceShowM "wtf5"
-                                       putMVar mDoneshootingFile doneshootingFile
+                                       putMVar mDoneshootingFile
+                                               doneshootingFile
                                        traceShowM "wtf6"
                                    )
 
@@ -1443,11 +1666,13 @@ receiveMessages window = do
                 return ()
 
             Message.WriteDagsdatoBackup dagsdatoBackup -> do
-                mDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
-                dagsdatoBackupFile  <- takeMVar mDagsdatoBackupFile
-                _             <- DagsdatoBackup.writeDagsdatoBackup dagsdatoBackupFile dagsdatoBackup
-                _             <- putMVar mDagsdatoBackupFile dagsdatoBackupFile
-                _             <- liftIO $ runUI window $ do
+                mDagsdatoBackupFile <-
+                    unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
+                dagsdatoBackupFile <- takeMVar mDagsdatoBackupFile
+                _ <- DagsdatoBackup.writeDagsdatoBackup dagsdatoBackupFile
+                                                        dagsdatoBackup
+                _ <- putMVar mDagsdatoBackupFile dagsdatoBackupFile
+                _ <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()
 
@@ -1467,18 +1692,22 @@ receiveMessages window = do
 
             Message.ReadDagsdatoBackup -> do
                 traceShowM "wtf"
-                mDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
-                dagsdatoBackupFile  <- takeMVar mDagsdatoBackupFile
+                mDagsdatoBackupFile <-
+                    unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
+                dagsdatoBackupFile <- takeMVar mDagsdatoBackupFile
                 traceShowM "wtf3"
                 runIt8 window dagsdatoBackupFile mDagsdatoBackupFile
                     `E.catchError` (\e -> do
                                        hDagsdatoBackupDir <-
-                                           unHDagsdatoBackupDir <$> grab @HDagsdatoBackupDir
-                                       liftIO $ hDagsdatoBackupDir $ Data.Failure
-                                           (show e)
+                                           unHDagsdatoBackupDir
+                                               <$> grab @HDagsdatoBackupDir
+                                       liftIO
+                                           $ hDagsdatoBackupDir
+                                           $ Data.Failure (show e)
                                        liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
                                        traceShowM "wtf5"
-                                       putMVar mDagsdatoBackupFile dagsdatoBackupFile
+                                       putMVar mDagsdatoBackupFile
+                                               dagsdatoBackupFile
                                        traceShowM "wtf6"
                                    )
 --------------------------------------------------------------------------------
@@ -1488,13 +1717,13 @@ receiveMessages window = do
             Message.WriteSessions sessions -> do
                 mSessionsFile <- unMSessionsFile <$> grab @MSessionsFile
                 sessionsFile  <- takeMVar mSessionsFile
-                _            <- Session.writeSessions sessionsFile sessions
-                _            <- putMVar mSessionsFile sessionsFile
-                _            <- liftIO $ runUI window $ do
+                _             <- Session.writeSessions sessionsFile sessions
+                _             <- putMVar mSessionsFile sessionsFile
+                _             <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()
 
-            Message.StartSessions-> do
+            Message.StartSessions -> do
                 mStartMap <- unMStartMap <$> grab @(MStartMap m)
                 mStopMap  <- unMStopMap <$> grab @MStopMap
                 stopMap   <- takeMVar mStopMap
@@ -1515,8 +1744,10 @@ receiveMessages window = do
                 traceShowM "wtf3"
                 runIt9 window sessionsFile mSessionsFile
                     `E.catchError` (\e -> do
-                                       hSessions <- unHSessions <$> grab @HSessions
-                                       liftIO $ hSessions $ Data.Failure (show e)
+                                       hSessions <-
+                                           unHSessions <$> grab @HSessions
+                                       liftIO $ hSessions $ Data.Failure
+                                           (show e)
                                        liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
                                        traceShowM "wtf5"
                                        putMVar mSessionsFile sessionsFile
@@ -1529,13 +1760,13 @@ receiveMessages window = do
             Message.WriteLocation location -> do
                 mLocationFile <- unMLocationFile <$> grab @MLocationFile
                 locationFile  <- takeMVar mLocationFile
-                _            <- Location.writeLocation locationFile location
-                _            <- putMVar mLocationFile locationFile
-                _            <- liftIO $ runUI window $ do
+                _             <- Location.writeLocation locationFile location
+                _             <- putMVar mLocationFile locationFile
+                _             <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()
 
-            Message.StartLocation-> do
+            Message.StartLocation -> do
                 mStartMap <- unMStartMap <$> grab @(MStartMap m)
                 mStopMap  <- unMStopMap <$> grab @MStopMap
                 stopMap   <- takeMVar mStopMap
@@ -1556,14 +1787,59 @@ receiveMessages window = do
                 traceShowM "wtf3"
                 runIt10 window locationFile mLocationFile
                     `E.catchError` (\e -> do
-                                       hLocationFile <- unHLocationFile <$> grab @HLocationFile
-                                       liftIO $ hLocationFile $ Data.Failure (show e)
+                                       hLocationFile <-
+                                           unHLocationFile
+                                               <$> grab @HLocationFile
+                                       liftIO $ hLocationFile $ Data.Failure
+                                           (show e)
                                        liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
                                        traceShowM "wtf5"
                                        putMVar mLocationFile locationFile
                                        traceShowM "wtf6"
                                    )
 
+
+--------------------------------------------------------------------------------
+            Message.StopGrades -> do
+                return ()
+
+            Message.WriteGrades grades -> do
+                mGradesFile <- unMGradesFile <$> grab @MGradesFile
+                gradesFile  <- takeMVar mGradesFile
+                _           <- Grade.writeGrades gradesFile grades
+                _           <- putMVar mGradesFile gradesFile
+                _           <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartGrades -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "grades"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadGrades -> do
+                traceShowM "wtf"
+                mGradesFile <- unMGradesFile <$> grab @MGradesFile
+                gradesFile  <- takeMVar mGradesFile
+                traceShowM "wtf3"
+                runIt11 window gradesFile mGradesFile
+                    `E.catchError` (\e -> do
+                                       hGrades <- unHGrades <$> grab @HGrades
+                                       liftIO $ hGrades $ Data.Failure (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mGradesFile gradesFile
+                                       traceShowM "wtf6"
+                                   )
 
 --------------------------------------------------------------------------------
 
@@ -1690,7 +1966,7 @@ getDagsdato fp =
 runIt6
     :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
 runIt6 window camerasFile mCamerasFile = do
-    cameras     <- getCameras camerasFile
+    cameras  <- getCameras camerasFile
     hCameras <- unHCameras <$> grab @HCameras
     liftIO $ hCameras $ Data.Data cameras
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
@@ -1722,7 +1998,9 @@ runIt7 window doneshootingFile mDoneshootingFile = do
 
 --type WithIOError m = MonadError AppError m
 getDoneshooting
-    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Doneshooting.Doneshooting
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m Doneshooting.Doneshooting
 getDoneshooting fp =
     readJSONFile fp
         `catchIOError` (\e -> do
@@ -1745,7 +2023,9 @@ runIt8 window dagsdatoBackupFile mDagsdatoBackupFile = do
 
 --type WithIOError m = MonadError AppError m
 getDagsdatoBackup
-    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m DagsdatoBackup.DagsdatoBackup
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m DagsdatoBackup.DagsdatoBackup
 getDagsdatoBackup fp =
     readJSONFile fp
         `catchIOError` (\e -> do
@@ -1758,7 +2038,7 @@ getDagsdatoBackup fp =
 runIt9
     :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
 runIt9 window sessionsFile mSessionsFile = do
-    sessions     <- getSessions sessionsFile
+    sessions  <- getSessions sessionsFile
     hSessions <- unHSessions <$> grab @HSessions
     liftIO $ hSessions $ Data.Data sessions
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
@@ -1780,7 +2060,7 @@ getSessions fp =
 runIt10
     :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
 runIt10 window locationFile mLocationFile = do
-    location     <- getLocation locationFile
+    location  <- getLocation locationFile
     hLocation <- unHLocationFile <$> grab @HLocationFile
     liftIO $ hLocation $ Data.Data location
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
@@ -1791,6 +2071,29 @@ runIt10 window locationFile mLocationFile = do
 getLocation
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Location.Location
 getLocation fp =
+    readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+
+runIt11
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt11 window gradesFile mGradesFile = do
+    grades  <- getGrades gradesFile
+    hGrades <- unHGrades <$> grab @HGrades
+    liftIO $ hGrades $ Data.Data grades
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mGradesFile gradesFile
+
+
+--type WithIOError m = MonadError AppError m
+getGrades
+    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Grade.Grades
+getGrades fp =
     readJSONFile fp
         `catchIOError` (\e -> do
                            if isUserError e

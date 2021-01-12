@@ -18,6 +18,7 @@ import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
+import qualified Lib.Model.Grade              as Grade
 
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
@@ -62,7 +63,8 @@ mkAppEnv port Config.Config {..} = do
     mSessionsFile' <- newMVar sessionsFile
     let mSessionsFile = App.MSessionsFile mSessionsFile'
 
-    mGradesFile   <- newMVar gradesFile
+    mGradesFile' <- newMVar gradesFile
+    let mGradesFile = App.MGradesFile mGradesFile'
 
     mCamerasFile' <- newMVar camerasFile
     let mCamerasFile = App.MCamerasFile mCamerasFile'
@@ -119,7 +121,8 @@ mkAppEnv port Config.Config {..} = do
     (eSessions, hSessions') <- Reactive.newEvent
     let hSessions = App.HSessions hSessions'
 
-    (eGrades      , hGrades       ) <- Reactive.newEvent
+    (eGrades      , hGrades'       ) <- Reactive.newEvent
+    let hGrades = App.HGrades hGrades'
 
     (eLocationFile, hLocationFile') <- Reactive.newEvent
     let hLocationFile = App.HLocationFile hLocationFile'
@@ -156,6 +159,8 @@ mkAppEnv port Config.Config {..} = do
                                          eDoneshootingDir
 
     bLocationFile <- Reactive.stepper Location.initalState eLocationFile
+
+    bGrades          <- Reactive.stepper Grade.initalState eGrades
 
     pure Env { .. }
 

@@ -4,6 +4,7 @@ module Lib.Watchers
     , shootingsFile
     , sessionsFile
     , dumpFile
+    , gradesFile
     , dagsdatoFile
     , dagsdatoBackupFile
     , doneshootingFile
@@ -24,6 +25,7 @@ import           Lib.App                        ( grab
                                                 , MShootingsFile
                                                 , MCamerasFile
                                                 , MDumpFile
+                                                , MGradesFile
                                                 , MDagsdatoFile
                                                 , MDagsdatoBackupFile
                                                 , MDoneshootingFile
@@ -37,6 +39,7 @@ import           Lib.App                        ( grab
                                                 , unMShootingsFile
                                                 , unMSessionsFile
                                                 , unMCamerasFile
+                                                , unMGradesFile
                                                 , unMDumpFile
                                                 , unMDagsdatoFile
                                                 , unMDagsdatoBackupFile
@@ -55,6 +58,7 @@ import qualified System.FilePath               as FP
 
 type WithEnv r m = (MonadReader r m
   , Has MPhotographersFile r
+  , Has MGradesFile r
 
   , Has MTabsFile r
   , Has MShootingsFile r
@@ -244,6 +248,24 @@ locationFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadLocation
+            return ()
+        )
+    return stop
+
+    
+gradesFile :: WithEnv r m => m FS.StopListening
+gradesFile = do
+    unMGradesFile <- unMGradesFile <$> grab @MGradesFile
+    file <- liftIO $ readMVar unMGradesFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadGrades
             return ()
         )
     return stop

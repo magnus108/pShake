@@ -13,12 +13,18 @@ import qualified Lib.Model.Doneshooting as Doneshooting
 import qualified Lib.Model.Camera as Camera
 import qualified Lib.Model.Session as Session
 import qualified Lib.Model.Location as Location
+import qualified Lib.Model.Grade as Grade
 
 data Message
     = ReadPhotographers
     | WritePhographers Photographer.Photographers
     | StartPhotograpers
     | StopPhotographers
+
+    | ReadGrades
+    | WriteGrades Grade.Grades
+    | StartGrades
+    | StopGrades
 
     | ReadTabs
     | WriteTabs Tab.Tabs

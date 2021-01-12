@@ -38,6 +38,7 @@ library
       Lib.Model.Data
       Lib.Model.Doneshooting
       Lib.Model.Dump
+      Lib.Model.Grade
       Lib.Model.Location
       Lib.Model.Photographer
       Lib.Model.Session
