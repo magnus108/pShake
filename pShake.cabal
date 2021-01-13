@@ -30,6 +30,7 @@ library
       Lib.App.Env
       Lib.App.Error
       Lib.App.Monad
+      Lib.Client.Main
       Lib.Config
       Lib.Message
       Lib.Model.Camera
@@ -38,6 +39,7 @@ library
       Lib.Model.Data
       Lib.Model.Doneshooting
       Lib.Model.Dump
+      Lib.Model.DumpDir
       Lib.Model.Grade
       Lib.Model.Location
       Lib.Model.Photographer

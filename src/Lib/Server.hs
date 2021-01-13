@@ -4,6 +4,8 @@ module Lib.Server
     )
 where
 
+import qualified Lib.Client.Main               as Main
+
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
                                                 , isUserError
@@ -315,12 +317,16 @@ entryPhotographeeInput bValue = do
 
     return PhotographeesInputEntry { .. }
 
-insertPhotograhees :: Maybe Grade.Grades -> Grade.Photographees -> Maybe Grade.Grades
+insertPhotograhees
+    :: Maybe Grade.Grades -> Grade.Photographees -> Maybe Grade.Grades
 insertPhotograhees grades photographees = case grades of
-    Nothing        -> Nothing
-    Just grades' -> 
-        let (ListZipper.ListZipper xs x ys) = Grade.unGrades grades' in
-            Just $ Grade.Grades $ ListZipper.ListZipper xs (Grade.Grade (x ^. Grade.gradeId) photographees) ys
+    Nothing -> Nothing
+    Just grades' ->
+        let (ListZipper.ListZipper xs x ys) = Grade.unGrades grades'
+        in  Just $ Grade.Grades $ ListZipper.ListZipper
+                xs
+                (Grade.Grade (x ^. Grade.gradeId) photographees)
+                ys
 
 
 -----------------------------------------------------------------------------
@@ -332,12 +338,14 @@ data PhotographeesBox a = PhotographeesBox
 instance Widget (PhotographeesBox a) where
     getElement = _elementPhotographeesPB
 
-listBoxPhotographees2 :: Behavior (Data.Data String Grade.Photographees) -> UI (PhotographeesBox a)
+listBoxPhotographees2
+    :: Behavior (Data.Data String Grade.Photographees)
+    -> UI (PhotographeesBox a)
 listBoxPhotographees2 bitems = do
     _elementPhotographeesPB <- UI.div
-    list             <- UI.select
+    list                    <- UI.select
 
-    item             <- Reactive.currentValue bitems
+    item                    <- Reactive.currentValue bitems
 
     case item of
         Data.NotAsked  -> element _elementPhotographeesPB # set text "Not Asked"
@@ -358,7 +366,8 @@ listBoxPhotographees2 bitems = do
         case s of
             Data.NotAsked ->
                 void $ element _elementPhotographeesPB # set text "Not Asked"
-            Data.Loading   -> void $ element _elementPhotographeesPB # set text "bobo"
+            Data.Loading ->
+                void $ element _elementPhotographeesPB # set text "bobo"
             Data.Failure e -> do
                 err <- string (show e)
                 void
@@ -369,7 +378,9 @@ listBoxPhotographees2 bitems = do
                 editing <- liftIO $ currentValue bEditing
                 when (not editing) $ void $ do
                     element list # set children [] #+ (mkPhotographees item)
-                    element _elementPhotographeesPB # set children [] #+ [element list]
+                    element _elementPhotographeesPB
+                        #  set children []
+                        #+ [element list]
 
     let _photographeesPB =
             tidings (Data.toJust <$> bitems)
@@ -381,9 +392,10 @@ listBoxPhotographees2 bitems = do
     return PhotographeesBox { .. }
 
 
-selectPhotographeeF :: Maybe Grade.Photographees -> Int -> Maybe Grade.Photographees
+selectPhotographeeF
+    :: Maybe Grade.Photographees -> Int -> Maybe Grade.Photographees
 selectPhotographeeF photographees selected = case photographees of
-    Nothing     -> Nothing
+    Nothing            -> Nothing
     Just photographees -> asum $ ListZipper.toNonEmpty $ ListZipper.iextend
         (\thisIndex photographees'' -> if selected == thisIndex
             then Just (Grade.Photographees photographees'')
@@ -396,7 +408,9 @@ mkPhotographees :: Grade.Photographees -> [UI Element]
 mkPhotographees photographees' = do
     let zipper = Grade.unPhotographees photographees'
     let elems = ListZipper.iextend
-            (\i photographees'' -> (i, zipper == photographees'', extract photographees''))
+            (\i photographees'' ->
+                (i, zipper == photographees'', extract photographees'')
+            )
             zipper
     fmap mkPhotographeesListItem (ListZipper.toList elems)
 
@@ -436,12 +450,12 @@ listBoxPhotographees
 listBoxPhotographees bValue = do
     content      <- UI.div
 
-    name        <- UI.input
-    tid        <- UI.input
-    sys        <- UI.input
+    name         <- UI.input
+    tid          <- UI.input
+    sys          <- UI.input
 
-    select <- listBoxPhotographees2  bValue 
-    
+    select       <- listBoxPhotographees2 bValue
+
     buttonInsert <- UI.button # set text "insert"
 
     bEditingName <- stepper False $ and <$> unions
@@ -481,8 +495,8 @@ listBoxPhotographees bValue = do
                 void $ element content # set children [] #+ [element err]
             Data.Data item -> do
                 editingName <- liftIO $ currentValue bEditingName
-                editingSys <- liftIO $ currentValue bEditingSys
-                editingTid <- liftIO $ currentValue bEditingTid
+                editingSys  <- liftIO $ currentValue bEditingSys
+                editingTid  <- liftIO $ currentValue bEditingTid
 
                 when (not editingName) $ void $ do
                     element name # set
@@ -503,7 +517,12 @@ listBoxPhotographees bValue = do
 
                     element content
                         #  set children []
-                        #+ [element name, element sys, element tid , element buttonInsert, element select]
+                        #+ [ element name
+                           , element sys
+                           , element tid
+                           , element buttonInsert
+                           , element select
+                           ]
 
     let eClick =
             filterJust
@@ -537,25 +556,37 @@ listBoxPhotographees bValue = do
                 <@> UI.valueChange sys
 
 
-    let lol           = unions [eClick, gradeInputTE1Name, gradeInputTE1Tid, gradeInputTE1Sys, filterJust $ rumors $ _photographeesPB select]
-    let _photographeesSideTE   =  Unsafe.head <$> lol
+    let lol = unions
+            [ eClick
+            , gradeInputTE1Name
+            , gradeInputTE1Tid
+            , gradeInputTE1Sys
+            , filterJust $ rumors $ _photographeesPB select
+            ]
+    let _photographeesSideTE = Unsafe.head <$> lol
 
     return PhotographeesSide { .. }
 
 setNamePhotographee :: Grade.Photographees -> String -> Grade.Photographees
-setNamePhotographee photographees name = case Grade.unPhotographees photographees of
-    ListZipper.ListZipper ls x rs -> Grade.Photographees
-        $ ListZipper.ListZipper ls (x & Grade.name .~ name) rs
+setNamePhotographee photographees name =
+    case Grade.unPhotographees photographees of
+        ListZipper.ListZipper ls x rs ->
+            Grade.Photographees
+                $ ListZipper.ListZipper ls (x & Grade.name .~ name) rs
 
 setTidPhotographee :: Grade.Photographees -> String -> Grade.Photographees
-setTidPhotographee photographees tid = case Grade.unPhotographees photographees of
-    ListZipper.ListZipper ls x rs -> Grade.Photographees
-        $ ListZipper.ListZipper ls (x & Grade.tid .~ tid) rs
+setTidPhotographee photographees tid =
+    case Grade.unPhotographees photographees of
+        ListZipper.ListZipper ls x rs ->
+            Grade.Photographees
+                $ ListZipper.ListZipper ls (x & Grade.tid .~ tid) rs
 
 setSysPhotographee :: Grade.Photographees -> String -> Grade.Photographees
-setSysPhotographee photographees sys = case Grade.unPhotographees photographees of
-    ListZipper.ListZipper ls x rs -> Grade.Photographees
-        $ ListZipper.ListZipper ls (x & Grade.sys .~ sys) rs
+setSysPhotographee photographees sys =
+    case Grade.unPhotographees photographees of
+        ListZipper.ListZipper ls x rs ->
+            Grade.Photographees
+                $ ListZipper.ListZipper ls (x & Grade.sys .~ sys) rs
 
 mkNewPhotograhee :: Maybe Grade.Photographees -> Maybe Grade.Photographees
 mkNewPhotograhee photographees' = case photographees' of
@@ -564,9 +595,7 @@ mkNewPhotograhee photographees' = case photographees' of
         let (ListZipper.ListZipper xs x ys) = Grade.unPhotographees zs
         in  Just $ Grade.Photographees $ ListZipper.ListZipper
                 xs
-                (Grade.Photographee
-                    "" "" ""
-                )
+                (Grade.Photographee "" "" "")
                 (x : ys)
 
 
@@ -1273,22 +1302,25 @@ tabsBox
            )
 tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades
     = do
-        _tabsE                <- UI.div
-        list                  <- UI.select
+        _tabsE                 <- UI.div
+        list                   <- UI.select
 
-        elemPhotographers     <- listBox bPhotographers
-        elemShootings         <- listBoxShootings bShootings
-        elemDump              <- listBoxDump bDump
-        elemDagsdato          <- listBoxDagsdato bDagsdato
-        elemCameras           <- listBoxCameras bCameras
-        elemDoneshooting      <- listBoxDoneshooting bDoneshooting
-        elemDagsdatoBackup    <- listBoxDagsdatoBackup bDagsdatoBackup
-        elemSessions          <- listBoxSessions bSessions
-        elemLocation          <- listBoxLocation bLocation
-        elemGrades            <- listBoxGrades bGrades
-        elemGradesInput       <- entryGradeInput bGrades
-        elemPhotograheesInput <- entryPhotographeeInput bGrades
-        elemPhotograheesInput2 <- listBoxPhotographees (fmap ( \x -> extract (Grade.unGrades x) ^. Grade.photographees) <$> bGrades)
+        elemPhotographers      <- listBox bPhotographers
+        elemShootings          <- listBoxShootings bShootings
+        elemDump               <- listBoxDump bDump
+        elemDagsdato           <- listBoxDagsdato bDagsdato
+        elemCameras            <- listBoxCameras bCameras
+        elemDoneshooting       <- listBoxDoneshooting bDoneshooting
+        elemDagsdatoBackup     <- listBoxDagsdatoBackup bDagsdatoBackup
+        elemSessions           <- listBoxSessions bSessions
+        elemLocation           <- listBoxLocation bLocation
+        elemGrades             <- listBoxGrades bGrades
+        elemGradesInput        <- entryGradeInput bGrades
+        elemPhotograheesInput  <- entryPhotographeeInput bGrades
+        elemPhotograheesInput2 <- listBoxPhotographees
+            (   fmap (\x -> extract (Grade.unGrades x) ^. Grade.photographees)
+            <$> bGrades
+            )
 
         element _tabsE
             # sink
@@ -1438,7 +1470,10 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                         element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element photographeesInput, element photographeesInput2]
+                            #+ [ element list
+                               , element photographeesInput
+                               , element photographeesInput2
+                               ]
 
 
                     _ -> do
@@ -1469,7 +1504,11 @@ setup env@Env {..} win = mdo
                 bLocationFile
                 bGrades
 
-    let eElemPhotographees2 = filterJust $ insertPhotograhees <$> (Data.toJust <$> bGrades ) <@> _photographeesSideTE elemPhotograheesInput2
+    let eElemPhotographees2 =
+            filterJust
+                $   insertPhotograhees
+                <$> (Data.toJust <$> bGrades)
+                <@> _photographeesSideTE elemPhotograheesInput2
 
     _ <- onEvent eElemPhotographees2 $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)

@@ -7,6 +7,7 @@ import qualified Lib.Model.Photographer as Photographer
 import qualified Lib.Model.Tab as Tab
 import qualified Lib.Model.Shooting as Shooting
 import qualified Lib.Model.Dump as Dump
+import qualified Lib.Model.DumpDir as DumpDir
 import qualified Lib.Model.Dagsdato as Dagsdato
 import qualified Lib.Model.DagsdatoBackup as DagsdatoBackup
 import qualified Lib.Model.Doneshooting as Doneshooting
@@ -50,6 +51,11 @@ data Message
     | WriteDump Dump.Dump
     | StartDump
     | StopDump
+
+    | ReadDumpDir
+    | WriteDumpDir DumpDir.DumpDir
+    | StartDumpDir
+    | StopDumpDir
 
     | ReadDagsdato
     | WriteDagsdato Dagsdato.Dagsdato

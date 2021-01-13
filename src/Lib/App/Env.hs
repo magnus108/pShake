@@ -98,10 +98,14 @@ data Env (m :: Type -> Type) = Env
     , hDagsdatoBackupDir :: HDagsdatoBackupDir
     , eConfigDagsdatoBackup :: !(Reactive.Event ())
     , hConfigDagsdatoBackup :: !(Reactive.Handler ())
+
+
     , eDumpDir :: !(Reactive.Event (Data.Data String Dump.Dump))
     , hDumpDir :: HDumpDir
     , eConfigDump :: !(Reactive.Event ())
     , hConfigDump :: !(Reactive.Handler ())
+
+
     , eTabs :: !(Reactive.Event (Data.Data String Tab.Tabs))
     , hTabs :: HTabs
     , ePhotographers :: !(Reactive.Event (Data.Data String Photographer.Photographers))
