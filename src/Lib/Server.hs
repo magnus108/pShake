@@ -4,6 +4,7 @@ module Lib.Server
     )
 where
 
+import System.Directory
 import qualified Lib.Client.Main               as Main
 
 import qualified Foreign.JavaScript            as JavaScript
@@ -52,6 +53,7 @@ import           Lib.App                        ( runApp
                                                 , HGrades(..)
                                                 , MGradesFile(..)
                                                 , HDumpDir(..)
+                                                , HConfigDumpDir(..)
                                                 , MDumpFile(..)
                                                 , HDoneshootingDir(..)
                                                 , MDoneshootingFile(..)
@@ -101,6 +103,7 @@ import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dump                as Dump
+import qualified Lib.Model.DumpDir                as DumpDir
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Session             as Session
@@ -1284,6 +1287,7 @@ tabsBox
     -> Behavior (Data.Data String Session.Sessions)
     -> Behavior (Data.Data String Location.Location)
     -> Behavior (Data.Data String Grade.Grades)
+    -> Behavior (Data.Data String DumpDir.DumpDir)
     -> UI
            ( PhotographersBox b
            , ShootingsBox c
@@ -1300,7 +1304,7 @@ tabsBox
            , PhotographeesSide
            , TabsBox a
            )
-tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades
+tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir
     = do
         _tabsE                 <- UI.div
         list                   <- UI.select
@@ -1322,6 +1326,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             <$> bGrades
             )
 
+        elemDumpCount <- Main.dumpCount bDumpDir
+
         element _tabsE
             # sink
                   (tabItems list
@@ -1338,6 +1344,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemGradesInput
                             elemPhotograheesInput
                             elemPhotograheesInput2
+                            elemDumpCount
                   )
 
                   bTabs
@@ -1392,7 +1399,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2
+tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 dumpCount
     = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
@@ -1406,7 +1413,7 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                         element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children [] -- THIS IS DANGEROUS?
-                            #+ [element list]
+                            #+ [element list, element dumpCount]
 
                     Tab.ShootingsTab -> do
                         element list # set children [] #+ (mkTabs item)
@@ -1503,6 +1510,7 @@ setup env@Env {..} win = mdo
                 bSessions
                 bLocationFile
                 bGrades
+                bConfigDumpDir
 
     let eElemPhotographees2 =
             filterJust
@@ -1655,6 +1663,7 @@ type WithChan r m
       , Has HCameras r
       , Has MCamerasFile r
       , Has HDumpDir r
+      , Has HConfigDumpDir r
       , Has MDumpFile r
       , Has HLocationFile r
       , Has MLocationFile r
@@ -1706,7 +1715,6 @@ setupStartMap = do
     let watcher7      = Watchers.doneshootingFile
     let newStartMap7 = HashMap.insert key7 watcher7 newStartMap6
 
-
     let key8          = "dagsdatoBackup"
     let watcher8      = Watchers.dagsdatoFile
     let newStartMap8 = HashMap.insert key8 watcher8 newStartMap7
@@ -1723,7 +1731,11 @@ setupStartMap = do
     let watcher11     = Watchers.gradesFile
     let newStartMap11 = HashMap.insert key11 watcher11 newStartMap10
 
-    putMVar mStartMap newStartMap11
+    let key12          = "dumpDir"
+    let watcher12      = Watchers.dumpFile
+    let newStartMap12 = HashMap.insert key12 watcher12 newStartMap11
+
+    putMVar mStartMap newStartMap12
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -1734,6 +1746,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadShootings
     liftIO $ Chan.writeChan inChan Message.ReadSessions
     liftIO $ Chan.writeChan inChan Message.ReadDump
+    liftIO $ Chan.writeChan inChan Message.ReadDumpDir
     liftIO $ Chan.writeChan inChan Message.ReadDagsdato
     liftIO $ Chan.writeChan inChan Message.ReadCameras
     liftIO $ Chan.writeChan inChan Message.ReadDoneshooting
@@ -1749,6 +1762,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartShootings
     liftIO $ Chan.writeChan inChan Message.StartSessions
     liftIO $ Chan.writeChan inChan Message.StartDump
+    liftIO $ Chan.writeChan inChan Message.StartDumpDir
     liftIO $ Chan.writeChan inChan Message.StartDagsdato
     liftIO $ Chan.writeChan inChan Message.StartCameras
     liftIO $ Chan.writeChan inChan Message.StartDoneshooting
@@ -2254,6 +2268,47 @@ receiveMessages window = do
                                    )
 
 --------------------------------------------------------------------------------
+            Message.StopDumpDir -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "dumpDir"
+                _ <- liftIO $ stopMap HashMap.! key
+                let newStopMap = HashMap.delete key stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.StartDumpDir -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "dumpDir"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadDumpDir -> do
+                traceShowM "wtf"
+                mDumpFile <- unMDumpFile <$> grab @MDumpFile
+                dumpFile  <- takeMVar mDumpFile
+                traceShowM "wtf3"
+                runIt12 window dumpFile mDumpFile
+                    `E.catchError` (\e -> do
+                                       hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
+                                       liftIO $ hConfigDumpDir $ Data.Failure (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mDumpFile dumpFile
+                                       traceShowM "wtf6"
+                                   )
+--------------------------------------------------------------------------------
 
 
 
@@ -2507,6 +2562,32 @@ getGrades
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Grade.Grades
 getGrades fp =
     readJSONFile fp
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+
+runIt12
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt12 window dumpFile mDumpFile = do
+    dumpDir <- getDumpDir dumpFile
+    hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
+    liftIO $ hConfigDumpDir $ Data.Data dumpDir
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mDumpFile dumpFile
+
+
+--type WithIOError m = MonadError AppError m
+getDumpDir
+    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m DumpDir.DumpDir
+getDumpDir dumpFile = do
+    dump <- getDump dumpFile
+    let filepath = Dump.unDump dump
+    files <- liftIO $ listDirectory filepath
+    return (DumpDir.DumpDir files)
         `catchIOError` (\e -> do
                            if isUserError e
                                then E.throwError

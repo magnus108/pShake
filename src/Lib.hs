@@ -14,6 +14,7 @@ import qualified Lib.Model.Session             as Session
 
 import qualified Lib.Model.Location            as Location
 import qualified Lib.Model.Dump                as Dump
+import qualified Lib.Model.DumpDir                as DumpDir
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
@@ -104,7 +105,8 @@ mkAppEnv port Config.Config {..} = do
     (eDumpDir             , hDumpDir'            ) <- Reactive.newEvent
     let hDumpDir = App.HDumpDir hDumpDir'
 
-    (eConfigDump, hConfigDump) <- Reactive.newEvent
+    (eConfigDumpDir, hConfigDumpDir' ) <- Reactive.newEvent
+    let hConfigDumpDir = App.HConfigDumpDir hConfigDumpDir'
 
     (eTabs      , hTabs'     ) <- Reactive.newEvent
     let hTabs = App.HTabs hTabs'
@@ -149,6 +151,7 @@ mkAppEnv port Config.Config {..} = do
     bCameras           <- Reactive.stepper Camera.initalState eCameras
 
     bDumpDir           <- Reactive.stepper Dump.initalState eDumpDir
+    bConfigDumpDir           <- Reactive.stepper DumpDir.initalState eConfigDumpDir
 
     bDagsdatoDir       <- Reactive.stepper Dagsdato.initalState eDagsdatoDir
 

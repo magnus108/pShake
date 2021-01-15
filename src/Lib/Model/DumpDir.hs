@@ -3,8 +3,6 @@
 
 module Lib.Model.DumpDir
     ( DumpDir(..)
-    , getDumpDir
-    , writeDumpDir
     , initalState
     )
 where
@@ -23,14 +21,6 @@ newtype DumpDir = DumpDir { unDumpDir :: [FilePath] }
     deriving anyclass (FromJSON, ToJSON)
 
 makeLenses ''DumpDir
-
-getDumpDir
-    :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m DumpDir
-getDumpDir = readJSONFile
-
-writeDumpDir
-    :: (MonadIO m, MonadThrow m) => FilePath -> DumpDir -> m ()
-writeDumpDir = writeJSONFile
 
 initalState :: Data String DumpDir
 initalState = NotAsked

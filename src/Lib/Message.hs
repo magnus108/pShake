@@ -53,7 +53,6 @@ data Message
     | StopDump
 
     | ReadDumpDir
-    | WriteDumpDir DumpDir.DumpDir
     | StartDumpDir
     | StopDumpDir
 

@@ -4,6 +4,7 @@ module Lib.Watchers
     , shootingsFile
     , sessionsFile
     , dumpFile
+    , dumpDir
     , gradesFile
     , dagsdatoFile
     , dagsdatoBackupFile
@@ -56,6 +57,12 @@ import qualified Lib.Message                   as Message
 import qualified System.FilePath               as FP
 
 
+import qualified Lib.Model.Dump                as Dump
+
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                )
+
 type WithEnv r m = (MonadReader r m
   , Has MPhotographersFile r
   , Has MGradesFile r
@@ -72,7 +79,9 @@ type WithEnv r m = (MonadReader r m
   , Has MDoneshootingFile r
   , Has MLocationFile r
 
-  , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m)
+  , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m,
+    MonadCatch m, MonadThrow m)
+
 
 
 photographersFile :: WithEnv r m => m FS.StopListening
@@ -177,10 +186,31 @@ dumpFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadDump
+            Chan.writeChan inChan Message.StopDumpDir
+            Chan.writeChan inChan Message.StartDumpDir
+            Chan.writeChan inChan Message.ReadDumpDir
             return ()
         )
     return stop
 
+
+dumpDir :: WithEnv r m => m FS.StopListening
+dumpDir = do
+    unMDumpFile <- unMDumpFile <$> grab @MDumpFile
+    file <- liftIO $ readMVar unMDumpFile
+    dump <- Dump.getDump file
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (Dump.unDump dump )
+        (const True)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadDumpDir
+            return ()
+        )
+    return stop
 
 dagsdatoFile :: WithEnv r m => m FS.StopListening
 dagsdatoFile = do

@@ -17,8 +17,11 @@ module Lib.App.Env
     , HLocationFile(..)
     , MLocationFile(..)
 
+    , HConfigDumpDir(..)
+
     , HDumpDir(..)
     , MDumpFile(..)
+
     , HDagsdatoDir(..)
     , MDagsdatoFile(..)
     , HDagsdatoBackupDir(..)
@@ -46,6 +49,7 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Dump                as Dump
+import qualified Lib.Model.DumpDir                as DumpDir
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.Session             as Session
@@ -102,8 +106,8 @@ data Env (m :: Type -> Type) = Env
 
     , eDumpDir :: !(Reactive.Event (Data.Data String Dump.Dump))
     , hDumpDir :: HDumpDir
-    , eConfigDump :: !(Reactive.Event ())
-    , hConfigDump :: !(Reactive.Handler ())
+    , eConfigDumpDir :: !(Reactive.Event (Data.Data String DumpDir.DumpDir))
+    , hConfigDumpDir :: HConfigDumpDir
 
 
     , eTabs :: !(Reactive.Event (Data.Data String Tab.Tabs))
@@ -137,6 +141,7 @@ data Env (m :: Type -> Type) = Env
     , bCameras :: !(Reactive.Behavior (Data.Data String Camera.Cameras))
 
     , bDumpDir :: !(Reactive.Behavior (Data.Data String Dump.Dump))
+    , bConfigDumpDir :: !(Reactive.Behavior (Data.Data String DumpDir.DumpDir))
 
     , bDagsdatoDir :: !(Reactive.Behavior (Data.Data String Dagsdato.Dagsdato))
 
@@ -177,6 +182,7 @@ newtype HCameras = HCameras { unHCameras :: Reactive.Handler (Data.Data String C
 
 newtype MDumpFile = MDumpFile { unMDumpFile :: MVar FilePath }
 newtype HDumpDir = HDumpDir { unHDumpDir :: Reactive.Handler (Data.Data String Dump.Dump) }
+newtype HConfigDumpDir = HConfigDumpDir { unHConfigDumpDir :: Reactive.Handler (Data.Data String DumpDir.DumpDir) }
 
 newtype MLocationFile = MLocationFile { unMLocationFile :: MVar FilePath }
 newtype HLocationFile = HLocationFile { unHLocationFile :: Reactive.Handler (Data.Data String Location.Location) }
@@ -252,6 +258,9 @@ instance Has MDumpFile              (Env m) where
 
 instance Has HDumpDir             (Env m) where
     obtain = hDumpDir
+
+instance Has HConfigDumpDir             (Env m) where
+    obtain = hConfigDumpDir
 
 instance Has MDagsdatoFile              (Env m) where
     obtain = mDagsdatoFile
