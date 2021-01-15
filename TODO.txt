@@ -7,3 +7,4 @@ ReadDump -> [StopDumpDir, StartDumpDir, ReadDumpDir]
 ReadDumpDir -> []
 StartDumpDir -> []
 StopDumpDir -> []
+LAV WRITE DUMPDIR

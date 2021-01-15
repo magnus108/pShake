@@ -1302,6 +1302,7 @@ tabsBox
            , GradeInputEntry
            , PhotographeesInputEntry
            , PhotographeesSide
+           , Main.MainTab
            , TabsBox a
            )
 tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir
@@ -1326,7 +1327,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             <$> bGrades
             )
 
-        elemDumpCount <- Main.dumpCount bDumpDir
+        elemMainTab <- Main.mainTab bGrades bDumpDir
 
         element _tabsE
             # sink
@@ -1344,7 +1345,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemGradesInput
                             elemPhotograheesInput
                             elemPhotograheesInput2
-                            elemDumpCount
+                            elemMainTab
                   )
 
                   bTabs
@@ -1370,6 +1371,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             , elemGradesInput
             , elemPhotograheesInput
             , elemPhotograheesInput2
+            , elemMainTab
             , TabsBox { .. }
             )
 
@@ -1399,7 +1401,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 dumpCount
+tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
     = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
@@ -1413,7 +1415,7 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                         element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children [] -- THIS IS DANGEROUS?
-                            #+ [element list, element dumpCount]
+                            #+ [element list, element mainTab]
 
                     Tab.ShootingsTab -> do
                         element list # set children [] #+ (mkTabs item)
@@ -1498,7 +1500,7 @@ setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
     _ <- return win # set title "FF"
 
-    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, elem3) <-
+    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
         tabsBox bTabs
                 bPhotographers
                 bShootings
@@ -1518,7 +1520,14 @@ setup env@Env {..} win = mdo
                 <$> (Data.toJust <$> bGrades)
                 <@> _photographeesSideTE elemPhotograheesInput2
 
+
     _ <- onEvent eElemPhotographees2 $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteGrades item)
+
+
+    let eMainTab = Main._eMainTab mainTab
+    _ <- onEvent eMainTab $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteGrades item)
 
@@ -1732,7 +1741,7 @@ setupStartMap = do
     let newStartMap11 = HashMap.insert key11 watcher11 newStartMap10
 
     let key12          = "dumpDir"
-    let watcher12      = Watchers.dumpFile
+    let watcher12      = Watchers.dumpDir
     let newStartMap12 = HashMap.insert key12 watcher12 newStartMap11
 
     putMVar mStartMap newStartMap12

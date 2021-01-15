@@ -4,6 +4,7 @@ module Prelude
     , module Conduit
     , readJSONFile
     , writeJSONFile
+    , om
     )
 where
 
@@ -41,6 +42,11 @@ import           Data.Conduit.Attoparsec        ( sinkParser, ParseError(..))
 import           Data.Conduit.Binary            ( sourceFile )
 
 import Control.Exception (catch)
+
+
+om :: Monad m => (a -> b -> m c) -> m a -> b -> m c
+om f m = (m >>=) . flip f
+
 
 sinkFromJSON :: (MonadUnliftIO m, MonadThrow m, FromJSON a) => ConduitM ByteString o m a
 sinkFromJSON = do
