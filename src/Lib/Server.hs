@@ -271,7 +271,7 @@ entryPhotographeeInput bValue = do
         Data.Data item -> do
             void $ element input # set
                 value
-                (extract (Grade.unGrades item) ^. Grade.gradeId)
+                (extract (Grade._unGrades item) ^. Grade.gradeId)
         _ -> return ()
 
     window <- askWindow
@@ -288,7 +288,7 @@ entryPhotographeeInput bValue = do
                 when (not editing) $ void $ do
                     element input # set
                         value
-                        (extract (Grade.unGrades item) ^. Grade.gradeId)
+                        (extract (Grade._unGrades item) ^. Grade.gradeId)
                     element content
                         #  set children []
                         #+ [ element input
@@ -325,7 +325,7 @@ insertPhotograhees
 insertPhotograhees grades photographees = case grades of
     Nothing -> Nothing
     Just grades' ->
-        let (ListZipper.ListZipper xs x ys) = Grade.unGrades grades'
+        let (ListZipper.ListZipper xs x ys) = Grade._unGrades grades'
         in  Just $ Grade.Grades $ ListZipper.ListZipper
                 xs
                 (Grade.Grade (x ^. Grade.gradeId) photographees)
@@ -404,12 +404,12 @@ selectPhotographeeF photographees selected = case photographees of
             then Just (Grade.Photographees photographees'')
             else Nothing
         )
-        (Grade.unPhotographees photographees)
+        (Grade._unPhotographees photographees)
 
 
 mkPhotographees :: Grade.Photographees -> [UI Element]
 mkPhotographees photographees' = do
-    let zipper = Grade.unPhotographees photographees'
+    let zipper = Grade._unPhotographees photographees'
     let elems = ListZipper.iextend
             (\i photographees'' ->
                 (i, zipper == photographees'', extract photographees'')
@@ -476,15 +476,15 @@ listBoxPhotographees bValue = do
             void $ do
                 element name # set
                     value
-                    (extract (Grade.unPhotographees item) ^. Grade.name)
+                    (extract (Grade._unPhotographees item) ^. Grade.name)
 
                 element tid # set
                     value
-                    (extract (Grade.unPhotographees item) ^. Grade.tid)
+                    (extract (Grade._unPhotographees item) ^. Grade.tid)
 
                 element sys # set
                     value
-                    (extract (Grade.unPhotographees item) ^. Grade.sys)
+                    (extract (Grade._unPhotographees item) ^. Grade.sys)
         _ -> return ()
 
     window <- askWindow
@@ -504,17 +504,17 @@ listBoxPhotographees bValue = do
                 when (not editingName) $ void $ do
                     element name # set
                         value
-                        (extract (Grade.unPhotographees item) ^. Grade.name)
+                        (extract (Grade._unPhotographees item) ^. Grade.name)
 
                 when (not editingSys) $ void $ do
                     element sys # set
                         value
-                        (extract (Grade.unPhotographees item) ^. Grade.sys)
+                        (extract (Grade._unPhotographees item) ^. Grade.sys)
 
                 when (not editingTid) $ void $ do
                     element tid # set
                         value
-                        (extract (Grade.unPhotographees item) ^. Grade.tid)
+                        (extract (Grade._unPhotographees item) ^. Grade.tid)
 
                 when (not (editingName || editingTid || editingSys)) $ void $ do
 
@@ -572,21 +572,21 @@ listBoxPhotographees bValue = do
 
 setNamePhotographee :: Grade.Photographees -> String -> Grade.Photographees
 setNamePhotographee photographees name =
-    case Grade.unPhotographees photographees of
+    case Grade._unPhotographees photographees of
         ListZipper.ListZipper ls x rs ->
             Grade.Photographees
                 $ ListZipper.ListZipper ls (x & Grade.name .~ name) rs
 
 setTidPhotographee :: Grade.Photographees -> String -> Grade.Photographees
 setTidPhotographee photographees tid =
-    case Grade.unPhotographees photographees of
+    case Grade._unPhotographees photographees of
         ListZipper.ListZipper ls x rs ->
             Grade.Photographees
                 $ ListZipper.ListZipper ls (x & Grade.tid .~ tid) rs
 
 setSysPhotographee :: Grade.Photographees -> String -> Grade.Photographees
 setSysPhotographee photographees sys =
-    case Grade.unPhotographees photographees of
+    case Grade._unPhotographees photographees of
         ListZipper.ListZipper ls x rs ->
             Grade.Photographees
                 $ ListZipper.ListZipper ls (x & Grade.sys .~ sys) rs
@@ -595,7 +595,7 @@ mkNewPhotograhee :: Maybe Grade.Photographees -> Maybe Grade.Photographees
 mkNewPhotograhee photographees' = case photographees' of
     Nothing -> Nothing
     Just zs ->
-        let (ListZipper.ListZipper xs x ys) = Grade.unPhotographees zs
+        let (ListZipper.ListZipper xs x ys) = Grade._unPhotographees zs
         in  Just $ Grade.Photographees $ ListZipper.ListZipper
                 xs
                 (Grade.Photographee "" "" "")
@@ -628,7 +628,7 @@ entryGradeInput bValue = do
         Data.Data item -> do
             void $ element input # set
                 value
-                (extract (Grade.unGrades item) ^. Grade.gradeId)
+                (extract (Grade._unGrades item) ^. Grade.gradeId)
         _ -> return ()
 
     window <- askWindow
@@ -645,7 +645,7 @@ entryGradeInput bValue = do
                 when (not editing) $ void $ do
                     element input # set
                         value
-                        (extract (Grade.unGrades item) ^. Grade.gradeId)
+                        (extract (Grade._unGrades item) ^. Grade.gradeId)
                     element content
                         #  set children []
                         #+ [element input, element buttonInsert]
@@ -671,7 +671,7 @@ entryGradeInput bValue = do
     return GradeInputEntry { .. }
 
 setNameGrade :: Grade.Grades -> String -> Grade.Grades
-setNameGrade grades gradeId = case Grade.unGrades grades of
+setNameGrade grades gradeId = case Grade._unGrades grades of
     ListZipper.ListZipper ls x rs -> Grade.Grades
         $ ListZipper.ListZipper ls (x & Grade.gradeId .~ gradeId) rs
 
@@ -679,7 +679,7 @@ mkNewGrade :: Maybe Grade.Grades -> Maybe Grade.Grades
 mkNewGrade grades' = case grades' of
     Nothing -> Nothing
     Just zs ->
-        let (ListZipper.ListZipper xs x ys) = Grade.unGrades zs
+        let (ListZipper.ListZipper xs x ys) = Grade._unGrades zs
         in  Just $ Grade.Grades $ ListZipper.ListZipper
                 xs
                 (Grade.Grade
@@ -758,12 +758,12 @@ selectGradeF grades selected = case grades of
             then Just (Grade.Grades grades'')
             else Nothing
         )
-        (Grade.unGrades grades)
+        (Grade._unGrades grades)
 
 
 mkGrades :: Grade.Grades -> [UI Element]
 mkGrades grades' = do
-    let zipper = Grade.unGrades grades'
+    let zipper = Grade._unGrades grades'
     let elems = ListZipper.iextend
             (\i grades'' -> (i, zipper == grades'', extract grades''))
             zipper
@@ -1323,7 +1323,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         elemGradesInput        <- entryGradeInput bGrades
         elemPhotograheesInput  <- entryPhotographeeInput bGrades
         elemPhotograheesInput2 <- listBoxPhotographees
-            (   fmap (\x -> extract (Grade.unGrades x) ^. Grade.photographees)
+            (   fmap (\x -> extract (Grade._unGrades x) ^. Grade.photographees)
             <$> bGrades
             )
 

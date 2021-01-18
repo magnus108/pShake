@@ -6,10 +6,12 @@ module Lib.Model.Grade
     , Photographees(..)
     , Grade(..)
     , Grades(..)
+    , unPhotographees
     , photographees
     , gradeId
     , getGrades
     , writeGrades
+    , unGrades
     , sys
     , name
     , tid
@@ -43,11 +45,12 @@ data Photographee = Photographee
 makeLenses ''Photographee
 
 
-newtype Photographees = Photographees { unPhotographees :: ListZipper Photographee }
+newtype Photographees = Photographees { _unPhotographees :: ListZipper Photographee }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
 
+makeLenses ''Photographees
 
 data Grade = Grade
     { _gradeId :: GradeId
@@ -60,10 +63,12 @@ data Grade = Grade
 
 makeLenses ''Grade
 
-newtype Grades = Grades { unGrades :: ListZipper Grade }
+newtype Grades = Grades { _unGrades :: ListZipper Grade }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
+
+makeLenses ''Grades
 
 
 getGrades :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Grades

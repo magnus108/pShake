@@ -1,14 +1,21 @@
 {-# LANGUAGE RecursiveDo #-}
 module Lib.Client.Main
-    ( dumpCount
-    , mainTab
+    ( mainTab
     , MainTab(..)
     )
 where
+
+import Data.Char
+
 import           Control.Lens                   ( (^.)
                                                 , (.~)
                                                 , over
+                                                , (%~)
+                                                , lens
+                                                , view
+                                                , Lens'
                                                 )
+import qualified Control.Lens                  as Lens
 
 import qualified Relude.Unsafe                 as Unsafe
 import qualified Reactive.Threepenny           as Reactive
@@ -22,23 +29,23 @@ import qualified Lib.Model.Data                as Data
 import qualified Utils.ListZipper              as ListZipper
 import           Utils.Comonad
 
-data Count = Count
+data Count a = Count
     { _elementCount :: Element
     }
 
-instance Widget Count where
+instance Widget (Count a) where
     getElement = _elementCount
 
-dumpCount :: Behavior (Data.Data String DumpDir.DumpDir) -> UI Count
-dumpCount bItems = do
+countable :: String -> Behavior (Data.Data String [x]) -> UI (Count a)
+countable str bItems = do
 
     _elementCount <- UI.div
 
-    element _elementCount # sink count bItems
+    element _elementCount # sink (count str) bItems
 
     return Count { .. }
 
-count = mkWriteAttr $ \i x -> void $ do
+count str = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
         Data.Loading   -> return x # set text "bobo"
@@ -46,7 +53,7 @@ count = mkWriteAttr $ \i x -> void $ do
             err <- string (show e)
             return x # set children [] #+ [element err]
         Data.Data item -> do
-            return x # set text (show (length (DumpDir.unDumpDir item)))
+            return x # set text (str ++ " " ++ (show (length item)))
 
 
 -----------------------------------------------------------------------------
@@ -91,12 +98,12 @@ selectGrade grades selected = asum $ ListZipper.toNonEmpty $ ListZipper.iextend
         then Just (Grade.Grades grades'')
         else Nothing
     )
-    (Grade.unGrades grades)
+    (Grade._unGrades grades)
 
 
 mkGrades :: Grade.Grades -> [UI Element]
 mkGrades grades' = do
-    let zipper = Grade.unGrades grades'
+    let zipper = Grade._unGrades grades'
     let elems = ListZipper.iextend
             (\i zipper'' -> (i, zipper == zipper'', extract zipper''))
             zipper
@@ -143,12 +150,12 @@ selectPhotographee photographees selected =
             then Just (Grade.Photographees photographees'')
             else Nothing
         )
-        (Grade.unPhotographees photographees)
+        (Grade._unPhotographees photographees)
 
 
 mkPhotographees :: Grade.Photographees -> [UI Element]
 mkPhotographees photographees' = do
-    let zipper = Grade.unPhotographees photographees'
+    let zipper = Grade._unPhotographees photographees'
     let elems = ListZipper.iextend
             (\i zipper'' -> (i, zipper == zipper'', extract zipper''))
             zipper
@@ -161,7 +168,61 @@ mkPhotographee (thisIndex, isCenter, photographee) = do
     let option = UI.option # set value (show thisIndex) # set text name
     if isCenter then option # set UI.selected True else option
 -------------------------------------------------------------------------------
+data TextEntry = TextEntry
+    { _elementTE :: Element
+    , _userTE    :: Tidings String
+    }
 
+instance Widget TextEntry where
+    getElement = _elementTE
+
+userText :: TextEntry -> Tidings String
+userText = _userTE
+
+entry :: Behavior String -> UI TextEntry
+entry bValue = do
+    input    <- UI.input
+
+    bEditing <- stepper False $ and <$> unions
+        [True <$ UI.focus input, False <$ UI.blur input]
+
+    window <- askWindow
+    liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
+        editing <- liftIO $ currentValue bEditing
+        when (not editing) $ void $ element input # set value s
+
+    let _elementTE = input
+        _userTE    = tidings bValue $ UI.valueChange input
+
+    return TextEntry { .. }
+-------------------------------------------------------------------------------
+data SearchEntry a = SearchEntry
+    { _elementSearch :: Element
+    , _search    :: Event (Maybe (ListZipper.ListZipper a))
+    }
+
+instance Widget (SearchEntry a) where
+    getElement = _elementSearch
+
+search :: (a -> String) -> Behavior (Data.Data String (ListZipper.ListZipper a)) -> UI (SearchEntry a)
+search f bValue = mdo
+
+    input <- entry bSearchString
+
+    bSearchString <- stepper "" . rumors $ userText input
+    
+    let eSearchString = rumors $ fmap toUpper <$> userText input
+
+    let eSearch = (\b s -> b >>= (ListZipper.findFirst ((==) s . f)))
+                <$> (Data.toJust <$> bValue)
+                <@> eSearchString
+
+    _elementSearch <- element input
+    let _search    = eSearch
+
+    return SearchEntry { .. }
+
+-------------------------------------------------------------------------------
 
 data MainTab = MainTab
     { _elementMainTab :: Element
@@ -177,14 +238,26 @@ mainTab
     -> Behavior (Data.Data String DumpDir.DumpDir)
     -> UI MainTab
 mainTab bGrades bDumpDir = do
+
     _elementMainTab <- UI.div
+
     let bPhotographees =
-            fmap (\x -> extract (Grade.unGrades x) ^. Grade.photographees)
+            fmap (view (Grade.unGrades . zipperL . Grade.photographees))
                 <$> bGrades
 
     elemPhotographees <- photographeesSelect bPhotographees
     elemGrades        <- gradesSelect bGrades
-    elemDumpDirCount  <- dumpCount bDumpDir
+    elemDumpDirCount  <- countable "Antal filer i dump:"
+                                   (fmap DumpDir.unDumpDir <$> bDumpDir)
+    elemPhotographeesCount <- countable
+        "Elever i klasse:"
+        (   fmap ListZipper.toList
+        <$> fmap (view Grade.unPhotographees)
+        <$> bPhotographees
+        )
+
+    elemSearch <- search (view Grade.tid)
+        (fmap (view Grade.unPhotographees) <$> bPhotographees)
 
     let ePhotographeesSelect =
             filterJust
@@ -194,22 +267,37 @@ mainTab bGrades bDumpDir = do
 
     let eGradesSelect = _gradesSelect elemGrades
 
+    let eSearch =
+            filterJust
+                $   flip (fmap . setPhotographees)
+                <$> (Data.toJust <$> bGrades)
+                <@> (Grade.Photographees <$> (filterJust (_search elemSearch)))
+
     let _eMainTab =
-            Unsafe.head <$> unions [ePhotographeesSelect, eGradesSelect]
+            Unsafe.head <$> unions [ePhotographeesSelect, eGradesSelect, eSearch]
 
     element _elementMainTab
-        #+ [ element elemPhotographees
-           , element elemGrades
+        #+ [ element elemGrades
+           , element elemPhotographees
+           , element elemPhotographeesCount
            , element elemDumpDirCount
+           , element elemSearch
            ]
 
     return MainTab { .. }
 
 
+zipperL :: Lens' (ListZipper.ListZipper a) a
+zipperL = lens getter setter
+  where
+    getter :: ListZipper.ListZipper a -> a
+    getter = extract
+
+    setter :: (ListZipper.ListZipper a) -> a -> (ListZipper.ListZipper a)
+    setter (ListZipper.ListZipper ls x rs) new =
+        ListZipper.ListZipper ls new rs
+
+
 setPhotographees :: Grade.Photographees -> Grade.Grades -> Grade.Grades
 setPhotographees photographees grades =
-    let ListZipper.ListZipper ls x rs = Grade.unGrades grades
-    in  Grade.Grades $ ListZipper.ListZipper
-            ls
-            (x & Grade.photographees .~ photographees)
-            rs
+    Grade.unGrades . zipperL . Grade.photographees .~ photographees $ grades
