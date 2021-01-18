@@ -15,6 +15,7 @@ import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.Location            as Location
 import qualified Lib.Model.Dump                as Dump
 import qualified Lib.Model.DumpDir                as DumpDir
+import qualified Lib.Model.Build                as Build
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
@@ -78,7 +79,9 @@ mkAppEnv port Config.Config {..} = do
 
     mTranslationFile  <- newMVar translationFile
     mPhotograheesFile <- newMVar photograheesFile
-    mBuildFile        <- newMVar buildFile
+
+    mBuildFile'        <- newMVar buildFile
+    let mBuildFile = App.MBuildFile mBuildFile'
 
     mStopMap'         <- newMVar mempty
     let mStopMap = App.MStopMap mStopMap'
@@ -130,7 +133,9 @@ mkAppEnv port Config.Config {..} = do
     let hLocationFile = App.HLocationFile hLocationFile'
 
     (ePhotographees, hPhotographees) <- Reactive.newEvent
-    (eBuild        , hBuild        ) <- Reactive.newEvent
+
+    (eBuild        , hBuild'        ) <- Reactive.newEvent
+    let hBuild = App.HBuild hBuild'
 
     watchManager'                    <- FS.startManagerConf
         (FS.defaultConfig
@@ -143,6 +148,8 @@ mkAppEnv port Config.Config {..} = do
     bPhotographers <- Reactive.stepper Photographer.initalState ePhotographers
 
     bTabs              <- Reactive.stepper Tab.initalState eTabs
+
+    bBuild              <- Reactive.stepper Build.initalState eBuild
 
     bShootings         <- Reactive.stepper Shooting.initalState eShootings
 

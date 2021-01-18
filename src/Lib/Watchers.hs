@@ -11,6 +11,7 @@ module Lib.Watchers
     , doneshootingFile
     , camerasFile
     , locationFile
+    , buildFile
     )
 where
 
@@ -26,6 +27,8 @@ import           Lib.App                        ( grab
                                                 , MShootingsFile
                                                 , MCamerasFile
                                                 , MDumpFile
+                                                , MBuildFile
+
                                                 , MGradesFile
                                                 , MDagsdatoFile
                                                 , MDagsdatoBackupFile
@@ -36,6 +39,7 @@ import           Lib.App                        ( grab
                                                 , MStartMap
                                                 , unMPhotographersFile
                                                 , unMTabsFile
+                                                , unMBuildFile
 
                                                 , unMShootingsFile
                                                 , unMSessionsFile
@@ -78,6 +82,8 @@ type WithEnv r m = (MonadReader r m
   , Has MDagsdatoBackupFile r
   , Has MDoneshootingFile r
   , Has MLocationFile r
+
+  , Has MBuildFile r
 
   , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m,
     MonadCatch m, MonadThrow m)
@@ -282,7 +288,7 @@ locationFile = do
         )
     return stop
 
-    
+
 gradesFile :: WithEnv r m => m FS.StopListening
 gradesFile = do
     unMGradesFile <- unMGradesFile <$> grab @MGradesFile
@@ -296,6 +302,24 @@ gradesFile = do
         (\e -> void $ do
             print e
             Chan.writeChan inChan Message.ReadGrades
+            return ()
+        )
+    return stop
+
+
+buildFile :: WithEnv r m => m FS.StopListening
+buildFile = do
+    unMBuildFile <- unMBuildFile <$> grab @MBuildFile
+    file <- liftIO $ readMVar unMBuildFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadBuild
             return ()
         )
     return stop

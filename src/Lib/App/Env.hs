@@ -14,6 +14,9 @@ module Lib.App.Env
     , HGrades(..)
     , MGradesFile(..)
 
+    , HBuild(..)
+    , MBuildFile(..)
+
     , HLocationFile(..)
     , MLocationFile(..)
 
@@ -49,6 +52,7 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Dump                as Dump
+import qualified Lib.Model.Build                as Build
 import qualified Lib.Model.DumpDir                as DumpDir
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dagsdato            as Dagsdato
@@ -80,7 +84,7 @@ data Env (m :: Type -> Type) = Env
     , mTabsFile :: MTabsFile
     , mLocationFile :: MLocationFile
     , mTranslationFile :: !(MVar FilePath)
-    , mBuildFile :: !(MVar FilePath)
+    , mBuildFile :: MBuildFile
 
     , mStopMap :: MStopMap
     , mStartMap :: MStartMap m
@@ -128,8 +132,8 @@ data Env (m :: Type -> Type) = Env
     , hLocationFile :: HLocationFile
     , ePhotographees :: !(Reactive.Event ())
     , hPhotographees :: !(Reactive.Handler ())
-    , eBuild :: !(Reactive.Event ())
-    , hBuild :: !(Reactive.Handler ())
+    , eBuild :: !(Reactive.Event (Data.Data String Build.Build))
+    , hBuild :: HBuild
 
     , bPhotographers :: !(Reactive.Behavior (Data.Data String Photographer.Photographers))
 
@@ -196,7 +200,11 @@ newtype HDagsdatoBackupDir = HDagsdatoBackupDir { unHDagsdatoBackupDir :: Reacti
 newtype MDoneshootingFile = MDoneshootingFile { unMDoneshootingFile :: MVar FilePath }
 newtype HDoneshootingDir = HDoneshootingDir { unHDoneshootingDir :: Reactive.Handler (Data.Data String Doneshooting.Doneshooting) }
 
+newtype MBuildFile = MBuildFile { unMBuildFile :: MVar FilePath }
+newtype HBuild = HBuild { unHBuild :: Reactive.Handler (Data.Data String Build.Build) }
+
 newtype WatchManager = WatchManager { unWatchManager :: FS.WatchManager }
+
 
 
 class Has field env where
@@ -228,6 +236,12 @@ instance Has MGradesFile              (Env m) where
 
 instance Has HGrades             (Env m) where
     obtain = hGrades
+
+instance Has MBuildFile              (Env m) where
+    obtain = mBuildFile
+
+instance Has HBuild             (Env m) where
+    obtain = hBuild
 
 instance Has MTabsFile              (Env m) where
     obtain = mTabsFile

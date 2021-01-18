@@ -33,6 +33,7 @@ library
       Lib.Client.Main
       Lib.Config
       Lib.Message
+      Lib.Model.Build
       Lib.Model.Camera
       Lib.Model.Dagsdato
       Lib.Model.DagsdatoBackup
@@ -47,6 +48,7 @@ library
       Lib.Model.Shooting
       Lib.Model.Tab
       Lib.Server
+      Lib.Server.Build
       Lib.Watchers
       Prelude
       Utils.Comonad

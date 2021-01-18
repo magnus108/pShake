@@ -15,6 +15,7 @@ import qualified Lib.Model.Camera as Camera
 import qualified Lib.Model.Session as Session
 import qualified Lib.Model.Location as Location
 import qualified Lib.Model.Grade as Grade
+import qualified Lib.Model.Build as Build
 
 data Message
     = ReadPhotographers
@@ -75,4 +76,10 @@ data Message
     | WriteLocation Location.Location
     | StartLocation
     | StopLocation
+
+    | ReadBuild
+    | WriteBuild Build.Build
+    | StartBuild
+    | StopBuild
+
         deriving Show

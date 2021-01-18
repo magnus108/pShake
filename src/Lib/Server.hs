@@ -65,6 +65,10 @@ import           Lib.App                        ( runApp
                                                 , MTabsFile(..)
                                                 , HShootings(..)
                                                 , MShootingsFile(..)
+
+                                                , HBuild(..)
+                                                , MBuildFile(..)
+
                                                 , HSessions(..)
                                                 , MSessionsFile(..)
                                                 , HLocationFile(..)
@@ -99,6 +103,7 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
@@ -1672,6 +1677,7 @@ type WithChan r m
       , Has HCameras r
       , Has MCamerasFile r
       , Has HDumpDir r
+      , Has HBuild r
       , Has HConfigDumpDir r
       , Has MDumpFile r
       , Has HLocationFile r
@@ -1682,6 +1688,7 @@ type WithChan r m
       , Has MDagsdatoBackupFile r
       , Has HDoneshootingDir r
       , Has MDoneshootingFile r
+      , Has MBuildFile r
       , Has (MStartMap m) r
       , Has MStopMap r
       , Has OutChan r
@@ -1744,7 +1751,11 @@ setupStartMap = do
     let watcher12      = Watchers.dumpDir
     let newStartMap12 = HashMap.insert key12 watcher12 newStartMap11
 
-    putMVar mStartMap newStartMap12
+    let key13          = "build"
+    let watcher13      = Watchers.buildFile
+    let newStartMap13 = HashMap.insert key13 watcher13 newStartMap12
+
+    putMVar mStartMap newStartMap13
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -1762,6 +1773,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadDagsdatoBackup
     liftIO $ Chan.writeChan inChan Message.ReadLocation
     liftIO $ Chan.writeChan inChan Message.ReadGrades
+    liftIO $ Chan.writeChan inChan Message.ReadBuild
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
@@ -1778,6 +1790,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartDagsdatoBackup
     liftIO $ Chan.writeChan inChan Message.StartLocation
     liftIO $ Chan.writeChan inChan Message.StartGrades
+    liftIO $ Chan.writeChan inChan Message.StartBuild
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -2318,6 +2331,48 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 --------------------------------------------------------------------------------
+            Message.StopBuild -> do
+                return ()
+
+            Message.WriteBuild build -> do
+                mBuildFile <- unMBuildFile <$> grab @MBuildFile
+                buildFile  <- takeMVar mBuildFile
+                _           <- Build.writeBuild buildFile build
+                _           <- putMVar mBuildFile buildFile
+                _           <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartBuild -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "build"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadBuild -> do
+                traceShowM "wtf"
+                mBuildFile <- unMBuildFile <$> grab @MBuildFile
+                buildFile  <- takeMVar mBuildFile
+                traceShowM "wtf3"
+                runIt11 window buildFile mBuildFile
+                    `E.catchError` (\e -> do
+                                       hBuild <- unHBuild <$> grab @HBuild
+                                       liftIO $ hBuild $ Data.Failure (show e)
+                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+                                       traceShowM "wtf5"
+                                       putMVar mBuildFile buildFile
+                                       traceShowM "wtf6"
+                                   )
+
+--------------------------------------------------------------------------------
 
 
 
@@ -2597,6 +2652,32 @@ getDumpDir dumpFile = do
     let filepath = Dump.unDump dump
     files <- liftIO $ listDirectory filepath
     return (DumpDir.DumpDir files)
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+
+
+runIt13
+    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
+runIt13 window buildFile mBuildFile = do
+    build <- getBuild buildFile
+    hBuild <- unHBuild <$> grab @HBuild
+    liftIO $ hBuild $ Data.Data build
+    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
+    putMVar mBuildFile buildFile
+
+
+
+--type WithIOError m = MonadError AppError m
+getBuild
+    :: (MonadIO m, MonadCatch m, WithError m)
+    => FilePath
+    -> m Build.Build
+getBuild fp =
+    readJSONFile fp
         `catchIOError` (\e -> do
                            if isUserError e
                                then E.throwError
