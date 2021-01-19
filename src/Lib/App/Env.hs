@@ -140,6 +140,7 @@ data Env (m :: Type -> Type) = Env
     , bTabs :: !(Reactive.Behavior (Data.Data String Tab.Tabs))
 
     , bShootings :: !(Reactive.Behavior (Data.Data String Shooting.Shootings))
+    , bBuild :: !(Reactive.Behavior (Data.Data String Build.Build))
     , bSessions :: !(Reactive.Behavior (Data.Data String Session.Sessions))
 
     , bCameras :: !(Reactive.Behavior (Data.Data String Camera.Cameras))

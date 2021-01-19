@@ -1,6 +1,23 @@
 module Lib.Server.Build
-    ( 
+    ( runBuild
     ) where
+
+
+import           Lib.App                        ( WithError
+                                                )
+
+import           Control.Monad.Except           ( MonadError )
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                , catch
+                                                , catchIOError
+                                                , catchAll
+                                                , try
+                                                )
+import qualified Control.Monad.Except          as E
+                                                ( catchError
+                                                , throwError
+                                                )
         {-
 
 import qualified System.Directory as SD
@@ -280,3 +297,33 @@ myShake opts' time item = do
 
                     action $ removeFilesAfter root ["//*.CR3", "//*.JPG", "//*.cr3", "//*.jpg","//*.CR2","//*.cr2"]
                     -}
+
+
+-- runBuild :: Chan.Chan App.Action -> MVar FilePath -> MVar FilePath -> Main.Item -> IO ()
+
+runBuild :: (MonadIO m, MonadCatch m, WithError m) => m ()
+runBuild = do
+    return ()
+
+    {-
+runBuild messages mBuildFile mDumpFile item = do
+    time <- getCurrentTime
+    let date = getDate time
+
+    let photographees = Lens.view Main.photographees item
+    let photographee = extract (Photographee.unPhotographees photographees)
+
+    shaken <- try $ myShake (opts messages photographee) date item :: IO (Either SomeException ())
+    case shaken of
+        Left e ->  do
+            case show e of
+                "user error (missingjpg)" ->  do
+                    Chan.writeChan messages (App.BuilderMessage (Build.NoJpgBuild))
+                _ ->
+                    Chan.writeChan messages (App.BuilderMessage (Build.NoBuild))
+        Right _ -> do
+            Chan.writeChan messages (App.BuilderMessage (Build.DoneBuild photographee ("")))
+            --HACK
+            let dump = Lens.view Main.dump item
+            Chan.writeChan messages (App.WriteDump dump)
+            -}

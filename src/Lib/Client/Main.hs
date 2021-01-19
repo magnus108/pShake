@@ -22,6 +22,7 @@ import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
+import qualified Lib.Model.Build             as Build
 import qualified Lib.Model.DumpDir             as DumpDir
 import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Data                as Data
@@ -223,10 +224,30 @@ search f bValue = mdo
     return SearchEntry { .. }
 
 -------------------------------------------------------------------------------
+data BuildSection = BuildSection
+    { _elementBuild :: Element
+    , _build    :: Event ()
+    }
+
+instance Widget BuildSection where
+    getElement = _elementBuild
+
+buildSection :: Behavior (Data.Data String Build.Build) -> UI BuildSection
+buildSection bValue = do
+    content <- UI.div
+    button <- UI.button # set text "byg"
+
+    _elementBuild <- element content #+ [element button]
+    let _build = UI.click button
+
+    return BuildSection { .. }
+
+-------------------------------------------------------------------------------
 
 data MainTab = MainTab
     { _elementMainTab :: Element
     , _eMainTab :: !(Event Grade.Grades)
+    , _eBuild :: !(Event ())
     }
 
 instance Widget MainTab where
@@ -236,8 +257,9 @@ instance Widget MainTab where
 mainTab
     :: Behavior (Data.Data String Grade.Grades)
     -> Behavior (Data.Data String DumpDir.DumpDir)
+    -> Behavior (Data.Data String Build.Build)
     -> UI MainTab
-mainTab bGrades bDumpDir = do
+mainTab bGrades bDumpDir bBuild = do
 
     _elementMainTab <- UI.div
 
@@ -245,6 +267,7 @@ mainTab bGrades bDumpDir = do
             fmap (view (Grade.unGrades . zipperL . Grade.photographees))
                 <$> bGrades
 
+    elemBuild <- buildSection bBuild
     elemPhotographees <- photographeesSelect bPhotographees
     elemGrades        <- gradesSelect bGrades
     elemDumpDirCount  <- countable "Antal filer i dump:"
@@ -276,12 +299,15 @@ mainTab bGrades bDumpDir = do
     let _eMainTab =
             Unsafe.head <$> unions [ePhotographeesSelect, eGradesSelect, eSearch]
 
+    let _eBuild = _build elemBuild
+
     element _elementMainTab
         #+ [ element elemGrades
            , element elemPhotographees
            , element elemPhotographeesCount
            , element elemDumpDirCount
            , element elemSearch
+           , element elemBuild
            ]
 
     return MainTab { .. }

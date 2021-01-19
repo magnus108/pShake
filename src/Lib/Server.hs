@@ -103,6 +103,7 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Server.Build               as ServerBuild
 import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Doneshooting        as Doneshooting
@@ -1293,6 +1294,7 @@ tabsBox
     -> Behavior (Data.Data String Location.Location)
     -> Behavior (Data.Data String Grade.Grades)
     -> Behavior (Data.Data String DumpDir.DumpDir)
+    -> Behavior (Data.Data String Build.Build)
     -> UI
            ( PhotographersBox b
            , ShootingsBox c
@@ -1310,7 +1312,7 @@ tabsBox
            , Main.MainTab
            , TabsBox a
            )
-tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir
+tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
     = do
         _tabsE                 <- UI.div
         list                   <- UI.select
@@ -1332,7 +1334,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             <$> bGrades
             )
 
-        elemMainTab <- Main.mainTab bGrades bDumpDir
+        elemMainTab <- Main.mainTab bGrades bDumpDir bBuild
 
         element _tabsE
             # sink
@@ -1518,6 +1520,7 @@ setup env@Env {..} win = mdo
                 bLocationFile
                 bGrades
                 bConfigDumpDir
+                bBuild
 
     let eElemPhotographees2 =
             filterJust
@@ -1535,6 +1538,11 @@ setup env@Env {..} win = mdo
     _ <- onEvent eMainTab $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteGrades item)
+
+    let eBuild = Main._eBuild mainTab
+    _ <- onEvent eBuild $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.RunBuild)
 
     let eElemPhotographers =
             filterJust $ rumors $ _photographersPB elemPhotographers
@@ -2372,7 +2380,21 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 
+            Message.RunBuild -> do
+                runBuild `E.catchError` (\e -> do
+                                                        traceShowM "wtf6"
+                                                    )
+
 --------------------------------------------------------------------------------
+
+runBuild :: (MonadIO m, MonadCatch m, WithError m) => m ()
+runBuild = ServerBuild.runBuild
+        `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
 
 
 

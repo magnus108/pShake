@@ -81,5 +81,6 @@ data Message
     | WriteBuild Build.Build
     | StartBuild
     | StopBuild
+    | RunBuild
 
         deriving Show
