@@ -41,6 +41,7 @@ import           Control.Concurrent             ( forkIO
                                                 )
 import           Lib.App                        ( runApp
                                                 , AppEnv
+                                                , readGrades
                                                 , grab
                                                 , AppException(..)
                                                 , AppError(..)
@@ -2283,19 +2284,13 @@ receiveMessages window = do
                 return ()
 
             Message.ReadGrades -> do
-                traceShowM "wtf"
-                mGradesFile <- unMGradesFile <$> grab @MGradesFile
-                gradesFile  <- takeMVar mGradesFile
-                traceShowM "wtf3"
-                runIt11 window gradesFile mGradesFile
-                    `E.catchError` (\e -> do
-                                       hGrades <- unHGrades <$> grab @HGrades
-                                       liftIO $ hGrades $ Data.Failure (show e)
-                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
-                                       traceShowM "wtf5"
-                                       putMVar mGradesFile gradesFile
-                                       traceShowM "wtf6"
-                                   )
+                { grades <- readGrades
+                ; hGrades <- unHGrades <$> grab @HGrades
+                ; liftIO $ hGrades $ Data.Data grades
+                } `E.catchError` (\e -> do
+                                    hGrades <- unHGrades <$> grab @HGrades
+                                    liftIO $ hGrades $ Data.Failure (show e)
+                                )
 
 --------------------------------------------------------------------------------
             Message.StopDumpDir -> do
@@ -2370,6 +2365,7 @@ receiveMessages window = do
                 mBuildFile <- unMBuildFile <$> grab @MBuildFile
                 buildFile  <- takeMVar mBuildFile
                 traceShowM "wtf3"
+                    {-
                 runIt11 window buildFile mBuildFile
                     `E.catchError` (\e -> do
                                        hBuild <- unHBuild <$> grab @HBuild
@@ -2379,6 +2375,7 @@ receiveMessages window = do
                                        putMVar mBuildFile buildFile
                                        traceShowM "wtf6"
                                    )
+                                   -}
 
             Message.RunBuild -> do
                 runBuild `E.catchError` (\e -> do
@@ -2387,7 +2384,7 @@ receiveMessages window = do
 
 --------------------------------------------------------------------------------
 
-runBuild :: (MonadIO m, MonadCatch m, WithError m) => m ()
+runBuild :: forall  r m . WithChan r m => m ()
 runBuild = ServerBuild.runBuild
         `catchIOError` (\e -> do
                            if isUserError e
@@ -2632,28 +2629,6 @@ getLocation fp =
                                else E.throwError (InternalError $ WTF)
                        )
 
-
-runIt11
-    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
-runIt11 window gradesFile mGradesFile = do
-    grades  <- getGrades gradesFile
-    hGrades <- unHGrades <$> grab @HGrades
-    liftIO $ hGrades $ Data.Data grades
-    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
-    putMVar mGradesFile gradesFile
-
-
---type WithIOError m = MonadError AppError m
-getGrades
-    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Grade.Grades
-getGrades fp =
-    readJSONFile fp
-        `catchIOError` (\e -> do
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
 
 
 runIt12

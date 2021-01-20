@@ -1,6 +1,7 @@
 module Lib.App.Env
     ( Env(..)
     , Has(..)
+    , readGrades
     , WatchManager(..)
     , StartMap
     , StopMap
@@ -42,6 +43,30 @@ module Lib.App.Env
     , grab
     )
 where
+
+import           Control.Monad.Except           ( MonadError )
+
+import           Lib.App.Error                       ( AppException(..)
+                                                , AppError(..)
+                                                     , IError(..)
+                                                     , WithError
+                                                )
+import qualified Control.Monad.Except          as E
+                                                ( catchError
+                                                , throwError
+                                                )
+
+import           System.IO.Error                ( IOError
+                                                , isUserError
+                                                )
+
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                , catch
+                                                , catchIOError
+                                                , catchAll
+                                                , try
+                                                )
 
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Control.Concurrent.Chan.Unagi.Bounded
@@ -303,3 +328,33 @@ instance Has HLocationFile             (Env m) where
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field
+
+
+
+
+type WithGrades r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HGrades r
+      , Has MGradesFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+
+readGrades :: forall  r m . WithGrades r m => m Grade.Grades
+readGrades = do
+    mGradesFile <- unMGradesFile <$> grab @MGradesFile
+    gradesFile  <- takeMVar mGradesFile
+    grades <- readJSONFile gradesFile
+        `catchIOError` (\e -> do
+                           putMVar mGradesFile gradesFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mGradesFile gradesFile
+    return grades

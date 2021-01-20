@@ -9,7 +9,6 @@ module Lib.Model.Grade
     , unPhotographees
     , photographees
     , gradeId
-    , getGrades
     , writeGrades
     , unGrades
     , sys
@@ -71,11 +70,9 @@ newtype Grades = Grades { _unGrades :: ListZipper Grade }
 makeLenses ''Grades
 
 
-getGrades :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Grades
-getGrades = readJSONFile
-
 writeGrades :: (MonadIO m, MonadThrow m) => FilePath -> Grades -> m ()
 writeGrades = writeJSONFile
+
 
 initalState :: Data String Grades
 initalState = NotAsked
