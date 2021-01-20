@@ -1506,6 +1506,7 @@ example options callback = ffi
 
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
+    _ <- setCallBufferMode NoBuffering
     _ <- return win # set title "FF"
 
     (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-

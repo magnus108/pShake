@@ -21,6 +21,12 @@ import qualified Control.Monad.Except          as E
 
 import           Lib.App                        ( runApp
                                                 , AppEnv
+                                                , readGrades
+                                                , readPhotographers
+                                                , readDoneshooting
+                                                , readDagsdato
+                                                , readDagsdatoBackup
+                                                , readDump
                                                 , grab
                                                 , AppException(..)
                                                 , AppError(..)
@@ -437,8 +443,13 @@ runBuild = do
     time <- liftIO getCurrentTime
     let date = getDate time
 
- --   mGradesFile <- unMGradesFile <$> grab @MGradesFile
---    gradesFile  <- takeMVar mGradesFile
+    grades <- readGrades
+    photographers <- readPhotographers
+    dagsdatoBackup <- readDagsdatoBackup
+    dagsdato <- readDagsdato
+    dump <- readDump
+    doneshooting <- readDoneshooting
+
 
     return ()
 

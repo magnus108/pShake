@@ -2,6 +2,11 @@ module Lib.App.Env
     ( Env(..)
     , Has(..)
     , readGrades
+    , readDoneshooting
+    , readDump
+    , readPhotographers
+    , readDagsdato
+    , readDagsdatoBackup
     , WatchManager(..)
     , StartMap
     , StopMap
@@ -358,3 +363,140 @@ readGrades = do
                        )
     putMVar mGradesFile gradesFile
     return grades
+
+
+type WithPhotographers r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HPhotographers r
+      , Has MPhotographersFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readPhotographers :: forall  r m . WithPhotographers r m => m Photographer.Photographers
+readPhotographers = do
+    mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+    photographersFile  <- takeMVar mPhotographersFile
+    photographers <- readJSONFile photographersFile
+        `catchIOError` (\e -> do
+                           putMVar mPhotographersFile photographersFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mPhotographersFile photographersFile
+    return photographers
+
+
+
+type WithDump r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HDumpDir r
+      , Has MDumpFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDump :: forall  r m . WithDump r m => m Dump.Dump
+readDump = do
+    mDumpFile <- unMDumpFile <$> grab @MDumpFile
+    dumpFile  <- takeMVar mDumpFile
+    dump <- readJSONFile dumpFile
+        `catchIOError` (\e -> do
+                           putMVar mDumpFile dumpFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mDumpFile dumpFile
+    return dump
+
+
+type WithDoneshooting r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HDoneshootingDir r
+      , Has MDoneshootingFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDoneshooting :: forall  r m . WithDoneshooting r m => m Doneshooting.Doneshooting
+readDoneshooting = do
+    mDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
+    doneshootingFile  <- takeMVar mDoneshootingFile
+    doneshooting <- readJSONFile doneshootingFile
+        `catchIOError` (\e -> do
+                           putMVar mDoneshootingFile doneshootingFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mDoneshootingFile doneshootingFile
+    return doneshooting
+
+
+
+type WithDagsdato r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HDagsdatoDir r
+      , Has MDagsdatoFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDagsdato :: forall  r m . WithDagsdato r m => m Dagsdato.Dagsdato
+readDagsdato = do
+    mDagsdatoFile <- unMDagsdatoFile <$> grab @MDagsdatoFile
+    dagsdatoFile  <- takeMVar mDagsdatoFile
+    dagsdato <- readJSONFile dagsdatoFile
+        `catchIOError` (\e -> do
+                           putMVar mDagsdatoFile dagsdatoFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mDagsdatoFile dagsdatoFile
+    return dagsdato
+
+
+type WithDagsdatoBackup r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HDagsdatoBackupDir r
+      , Has MDagsdatoBackupFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDagsdatoBackup :: forall  r m . WithDagsdatoBackup r m => m DagsdatoBackup.DagsdatoBackup
+readDagsdatoBackup = do
+    mDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
+    dagsdatoBackupFile  <- takeMVar mDagsdatoBackupFile
+    dagsdatoBackup <- readJSONFile dagsdatoBackupFile
+        `catchIOError` (\e -> do
+                           putMVar mDagsdatoBackupFile dagsdatoBackupFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mDagsdatoBackupFile dagsdatoBackupFile
+    return dagsdatoBackup
