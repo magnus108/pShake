@@ -1076,7 +1076,7 @@ dumpItem folderPicker = mkWriteAttr $ \i x -> void $ do
 
 mkFolderPicker :: Dump.Dump -> UI Element
 mkFolderPicker dump = do
-    let name' = Dump.unDump dump
+    let name' = Lens.view Dump.unDump dump
     UI.p # set text name'
 
 
@@ -2647,7 +2647,7 @@ getDumpDir
     :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m DumpDir.DumpDir
 getDumpDir dumpFile = do
     dump <- getDump dumpFile
-    let filepath = Dump.unDump dump
+    let filepath = Lens.view Dump.unDump dump
     files <- liftIO $ listDirectory filepath
     return (DumpDir.DumpDir files)
         `catchIOError` (\e -> do

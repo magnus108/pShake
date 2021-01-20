@@ -2,6 +2,16 @@ module Lib.Server.Build
     ( runBuild
     ) where
 
+import qualified Data.List.Index as Indexed
+import Development.Shake
+import Development.Shake.FilePath
+import qualified Development.Shake.FilePath as FP
+
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                , view
+                                                )
 
 import           Lib.App                        ( WithError
                                                 )
@@ -329,6 +339,7 @@ entry messages mBuildFile mDumpFile item = do
             Chan.writeChan messages (App.WriteDump dump)
 
 
+
 myShake :: ShakeOptions -> String -> Main.Item -> IO ()
 myShake opts' time item = do
     let dump = Lens.view Main.dump item
@@ -438,6 +449,13 @@ type WithChan r m
       )
 
 
+getOpts :: forall  r m . WithChan r m => m ShakeOptions
+getOpts = return $ shakeOptions
+        { shakeFiles = shakeDir
+        , shakeThreads = 0
+        }
+
+
 runBuild :: forall  r m . WithChan r m => m ()
 runBuild = do
     time <- liftIO getCurrentTime
@@ -450,28 +468,27 @@ runBuild = do
     dump <- readDump
     doneshooting <- readDoneshooting
 
+    opts <- getOpts
 
-    return ()
+    liftIO $ shake opts $ do
+        Indexed.iforM_ (dump ^. Dump.unDump) $ \ i f -> do -- pair 
+                want []
+            {-
+            ((cr, (doneshootingCr,dagsdatoCr, dagsdatoBackupCr)),(jpg, (doneshootingJpg, dagsdatoJpg, dagsdatoBackupJpg))) -> do
 
-    {-
-runBuild messages mBuildFile mDumpFile item = do
-    time <- getCurrentTime
-    let date = getDate time
+            want [doneshootingCr, doneshootingJpg, dagsdatoCr, dagsdatoJpg , dagsdatoBackupCr, dagsdatoBackupJpg]
 
-    let photographees = Lens.view Main.photographees item
-    let photographee = extract (Photographee.unPhotographees photographees)
+            doneshootingCr %> copyFile' (root </> cr)
 
-    shaken <- try $ myShake (opts messages photographee) date item :: IO (Either SomeException ())
-    case shaken of
-        Left e ->  do
-            case show e of
-                "user error (missingjpg)" ->  do
-                    Chan.writeChan messages (App.BuilderMessage (Build.NoJpgBuild))
-                _ ->
-                    Chan.writeChan messages (App.BuilderMessage (Build.NoBuild))
-        Right _ -> do
-            Chan.writeChan messages (App.BuilderMessage (Build.DoneBuild photographee ("")))
-            --HACK
-            let dump = Lens.view Main.dump item
-            Chan.writeChan messages (App.WriteDump dump)
+            doneshootingJpg %> copyFile' (root </> jpg)
+
+            dagsdatoCr %> copyFile' (root </> cr)
+
+            dagsdatoJpg %> copyFile' (root </> jpg)
+
+            dagsdatoBackupCr %> copyFile' (root </> cr)
+
+            dagsdatoBackupJpg %> copyFile' (root </> jpg)
+
+            action $ removeFilesAfter root ["//*.CR3", "//*.JPG", "//*.cr3", "//*.jpg","//*.CR2","//*.cr2"]
             -}

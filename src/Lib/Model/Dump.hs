@@ -6,6 +6,7 @@ module Lib.Model.Dump
     , getDump
     , writeDump
     , initalState
+    , unDump
     )
 where
 
@@ -18,7 +19,7 @@ import           Control.Monad.Catch            ( MonadThrow
                                                 )
 
 
-newtype Dump = Dump { unDump :: FilePath }
+newtype Dump = Dump { _unDump :: FilePath }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)

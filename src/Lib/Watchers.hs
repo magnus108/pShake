@@ -1,6 +1,7 @@
 module Lib.Watchers
     ( photographersFile
     , tabsFile
+    , readDump
     , shootingsFile
     , sessionsFile
     , dumpFile
@@ -14,6 +15,35 @@ module Lib.Watchers
     , buildFile
     )
 where
+import           Control.Monad.Except           ( MonadError )
+
+import           Lib.App.Error                       ( AppException(..)
+                                                , AppError(..)
+                                                     , IError(..)
+                                                     , WithError
+                                                )
+
+import           Control.Monad.Catch            ( MonadThrow
+                                                , MonadCatch
+                                                , catch
+                                                , catchIOError
+                                                , catchAll
+                                                , try
+                                                )
+import qualified Control.Monad.Except          as E
+                                                ( catchError
+                                                , throwError
+                                                )
+
+import           System.IO.Error                ( IOError
+                                                , isUserError
+                                                )
+
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                , view
+                                                )
 
 import           Lib.App                        ( grab
                                                 , Has(..)
@@ -65,6 +95,7 @@ import qualified Lib.Model.Dump                as Dump
 
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
+                                                , try
                                                 )
 
 type WithEnv r m = (MonadReader r m
@@ -77,6 +108,9 @@ type WithEnv r m = (MonadReader r m
   , Has MCamerasFile r
 
   , Has MDumpFile r
+
+  , MonadError AppError m
+  , WithError m
 
   , Has MDagsdatoFile r
   , Has MDagsdatoBackupFile r
@@ -200,23 +234,53 @@ dumpFile = do
     return stop
 
 
+
+type WithDump r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has MDumpFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDump :: forall  r m . WithDump r m => m Dump.Dump
+readDump = do
+    mDumpFile <- unMDumpFile <$> grab @MDumpFile
+    dumpFile  <- takeMVar mDumpFile
+    dump <- readJSONFile dumpFile
+        `catchIOError` (\e -> do
+                           putMVar mDumpFile dumpFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mDumpFile dumpFile
+    return dump
+
+
 dumpDir :: WithEnv r m => m FS.StopListening
 dumpDir = do
-    unMDumpFile <- unMDumpFile <$> grab @MDumpFile
-    file <- liftIO $ readMVar unMDumpFile
-    dump <- Dump.getDump file
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
-        watchManager
-        (Dump.unDump dump )
-        (const True)
-        (\e -> void $ do
-            print e
-            Chan.writeChan inChan Message.ReadDumpDir
-            return ()
-        )
-    return stop
+    { unMDumpFile <- unMDumpFile <$> grab @MDumpFile
+    ; file <- liftIO $ readMVar unMDumpFile
+    ; watchManager <- unWatchManager <$> grab @WatchManager
+    ; inChan <- unInChan <$> grab @InChan
+    ; dump <- readDump
+    ; stop <- liftIO $ FS.watchDir
+                watchManager
+                (view Dump.unDump dump)
+                (const True)
+                (\e -> void $ do
+                    print e
+                    Chan.writeChan inChan Message.ReadDumpDir
+                    return ()
+                )
+    ; return stop
+    } `E.catchError` (\e -> do
+                        return $ return ()
+                    )
 
 dagsdatoFile :: WithEnv r m => m FS.StopListening
 dagsdatoFile = do
