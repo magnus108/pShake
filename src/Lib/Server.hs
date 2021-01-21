@@ -4,6 +4,9 @@ module Lib.Server
     )
 where
 
+import Data.Char
+import Data.List
+import qualified System.FilePath as FP
 import System.Directory
 import qualified Lib.Client.Main               as Main
 
@@ -43,6 +46,8 @@ import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , readGrades
                                                 , grab
+                                                , readDumpDir
+                                                , readCameras
                                                 , AppException(..)
                                                 , AppError(..)
                                                 , WithError
@@ -1171,7 +1176,7 @@ dagsdatoItem folderPicker = mkWriteAttr $ \i x -> void $ do
 
 mkFolderPicker2 :: Dagsdato.Dagsdato -> UI Element
 mkFolderPicker2 dagsdato = do
-    let name' = Dagsdato.unDagsdato dagsdato
+    let name' = Lens.view Dagsdato.unDagsdato dagsdato
     UI.p # set text name'
 
 
@@ -1219,7 +1224,7 @@ dagsdatoBackupItem folderPicker = mkWriteAttr $ \i x -> void $ do
 
 mkFolderPicker4 :: DagsdatoBackup.DagsdatoBackup -> UI Element
 mkFolderPicker4 dagsdatoBackup = do
-    let name' = DagsdatoBackup.unDagsdatoBackup dagsdatoBackup
+    let name' =Lens.view DagsdatoBackup.unDagsdatoBackup dagsdatoBackup
     UI.p # set text name'
 
 
@@ -2321,18 +2326,10 @@ receiveMessages window = do
                 return ()
 
             Message.ReadDumpDir -> do
-                traceShowM "wtf"
-                mDumpFile <- unMDumpFile <$> grab @MDumpFile
-                dumpFile  <- takeMVar mDumpFile
-                traceShowM "wtf3"
-                runIt12 window dumpFile mDumpFile
+                runIt12 window 
                     `E.catchError` (\e -> do
                                        hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
                                        liftIO $ hConfigDumpDir $ Data.Failure (show e)
-                                       liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
-                                       traceShowM "wtf5"
-                                       putMVar mDumpFile dumpFile
-                                       traceShowM "wtf6"
                                    )
 --------------------------------------------------------------------------------
             Message.StopBuild -> do
@@ -2633,29 +2630,12 @@ getLocation fp =
 
 
 runIt12
-    :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
-runIt12 window dumpFile mDumpFile = do
-    dumpDir <- getDumpDir dumpFile
+    :: forall  r m . WithChan r m => Window -> m ()
+runIt12 window = do
+    dumpDir <- readDumpDir
     hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
     liftIO $ hConfigDumpDir $ Data.Data dumpDir
-    liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
-    putMVar mDumpFile dumpFile
 
-
---type WithIOError m = MonadError AppError m
-getDumpDir
-    :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m DumpDir.DumpDir
-getDumpDir dumpFile = do
-    dump <- getDump dumpFile
-    let filepath = Lens.view Dump.unDump dump
-    files <- liftIO $ listDirectory filepath
-    return (DumpDir.DumpDir files)
-        `catchIOError` (\e -> do
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
 
 
 runIt13

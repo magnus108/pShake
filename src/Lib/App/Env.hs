@@ -2,7 +2,9 @@ module Lib.App.Env
     ( Env(..)
     , Has(..)
     , readGrades
+    , readDagsdatoBackup
     , readCameras
+    , readDumpDir
     , readDoneshooting
     , readShootings
     , readDump
@@ -53,6 +55,17 @@ module Lib.App.Env
     )
 where
 
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                )
+import qualified Control.Lens                  as Lens
+
+import Data.Char
+import Data.List
+import qualified System.FilePath as FP
+import System.Directory
+
 import           Control.Monad.Except           ( MonadError )
 
 import           Lib.App.Error                       ( AppException(..)
@@ -60,6 +73,7 @@ import           Lib.App.Error                       ( AppException(..)
                                                      , IError(..)
                                                      , WithError
                                                 )
+import qualified Utils.ListZipper              as ListZipper
 import qualified Control.Monad.Except          as E
                                                 ( catchError
                                                 , throwError
@@ -401,7 +415,6 @@ type WithDump r m
     = ( MonadThrow m
       , MonadError AppError m
       , MonadReader r m
-      , Has HDumpDir r
       , Has MDumpFile r
       , MonadIO m
       , MonadCatch m
@@ -610,3 +623,43 @@ readShootings = do
                        )
     putMVar mShootingsFile shootingsFile
     return shootings
+
+
+
+type WithDumpDir r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has MCamerasFile r
+      , Has MDumpFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readDumpDir :: forall r m . WithDumpDir r m => m DumpDir.DumpDir
+readDumpDir = do {
+    dump <- readDump
+    ;cameras <- readCameras
+    ;let extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+    ;let filepath = Lens.view Dump.unDump dump
+
+    ;files <- liftIO $ listDirectory filepath
+
+    ;let (crs, jpgs) = partition (\x -> FP.takeExtension x == extension ) $
+            filter (\x -> 
+                        let
+                        ext = fmap toLower (FP.takeExtension x)
+                    in 
+                        (trace ext ext) == extension || ext == ".jpg"
+                   ) 
+            (sort files)
+
+    ;let pairUp = catMaybes [if FP.dropExtension i == (FP.dropExtension j) then Just (i,j) else Nothing | i <- crs, j <- jpgs]
+
+    ;traceShowM pairUp
+    -- Pair them
+    ;let pairs = DumpDir.DumpDir (fmap (\(x,y) -> DumpDir.File x y) pairUp)
+    ;return pairs
+    } 
+

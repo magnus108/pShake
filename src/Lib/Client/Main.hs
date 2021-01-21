@@ -271,7 +271,7 @@ mainTab bGrades bDumpDir bBuild = do
     elemPhotographees <- photographeesSelect bPhotographees
     elemGrades        <- gradesSelect bGrades
     elemDumpDirCount  <- countable "Antal filer i dump:"
-                                   (fmap DumpDir.unDumpDir <$> bDumpDir)
+                                   (fmap (Lens.view DumpDir.unDumpDir) <$> bDumpDir)
     elemPhotographeesCount <- countable
         "Elever i klasse:"
         (   fmap ListZipper.toList

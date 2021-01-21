@@ -40,8 +40,8 @@ makeLenses ''Cameras
 
 
 toExtension :: Camera -> String
-toExtension CR2 = "cr2"
-toExtension CR3 = "cr3"
+toExtension CR2 = ".cr2"
+toExtension CR3 = ".cr3"
 
 
 getCameras

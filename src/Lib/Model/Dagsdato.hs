@@ -5,6 +5,7 @@ module Lib.Model.Dagsdato
     ( Dagsdato(..)
     , getDagsdato
     , writeDagsdato
+    , unDagsdato
     , initalState
     )
 where
@@ -18,7 +19,7 @@ import           Control.Monad.Catch            ( MonadThrow
                                                 )
 
 
-newtype Dagsdato = Dagsdato { unDagsdato :: FilePath }
+newtype Dagsdato = Dagsdato { _unDagsdato :: FilePath }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)

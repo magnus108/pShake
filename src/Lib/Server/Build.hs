@@ -2,6 +2,7 @@ module Lib.Server.Build
     ( runBuild
     ) where
 
+import Data.Char
 import qualified System.Directory as SD
 import qualified Data.List.Index as Indexed
 import Development.Shake
@@ -35,6 +36,7 @@ import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , readGrades
                                                 , readShootings
+                                                , readDumpDir
                                                 , readPhotographers
                                                 , readSessions
                                                 , readCameras
@@ -272,8 +274,8 @@ mkDoneshootingPath index' file item =
             photographees = Lens.view Main.photographees item
             photographee = extract (Photographee.unPhotographees photographees)
             tea = Photographee.toTea' photographee
-            pad x = strPadLeft '0' 3 (show x)
-            no = pad index'
+            pad x = Strings.strPadLeft '0' 3 (show x)
+            no = pad index
 
 
 mkDoneshootingPathJpg :: Int -> FilePath -> Main.Item -> FilePath
@@ -479,10 +481,130 @@ readDoneshootingDir = do
     let session = sessions ^. Session.unSessions . ListZipper.zipperL
     let shootingId = show $ if session == Session.KindergartenGroup then 3 else Shooting.toInteger $ shootings ^. Shooting.unShootings . ListZipper.zipperL
     doneshooting <- readDoneshooting
-    let doneshootingFile = doneshooting ^. Doneshooting.unDoneshooting
-    let path = doneshootingFile </> locationName </> extension </> grade
+    let doneshootingPath = doneshooting ^. Doneshooting.unDoneshooting
+    let path = doneshootingPath </> locationName </> extension </> grade
     files <- liftIO $ SD.listDirectory path
     return files
+
+
+mkDoneshootingPathJpg :: forall  r m . WithChan r m => m (Int -> FilePath -> FilePath)
+mkDoneshootingPathJpg = do
+    location <- readLocation
+    sessions <- readSessions
+    cameras <- readCameras
+    photographers <- readPhotographers
+    doneshooting <- readDoneshooting
+    shootings <- readShootings
+    sessions <- readSessions
+    grades <- readGrades
+
+    return $ \index file ->
+        let locationName = takeBaseName $ view Location.unLocation location
+            sessionId = show $ Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
+
+            extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+
+            photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
+
+            doneshootingPath = doneshooting ^. Doneshooting.unDoneshooting
+
+            session = sessions ^. Session.unSessions . ListZipper.zipperL
+            shootingId = show $ if session == Session.KindergartenGroup then 3 else Shooting.toInteger $ shootings ^. Shooting.unShootings . ListZipper.zipperL
+
+            grade = view (Grade.unGrades . ListZipper.zipperL) grades
+            tid = grade ^. Grade.photographees . Grade.unPhotographees . ListZipper.zipperL . Grade.tid
+
+            fileExtension = toLower <$> (FP.takeExtension file)
+
+            pad x = padLeft '0' 3 (show x)
+            no = pad index
+
+            path = doneshootingPath </> locationName </> extension </> "_webshop" </> sessionId ++ "." ++ tid ++ "." ++ shootingId ++ "." ++ photographerId ++ "." ++ no ++ fileExtension
+        in
+            path
+
+mkDoneshootingPath :: forall  r m . WithChan r m => m (Int -> FilePath -> FilePath)
+mkDoneshootingPath = do
+    location <- readLocation
+    sessions <- readSessions
+    cameras <- readCameras
+    photographers <- readPhotographers
+    doneshooting <- readDoneshooting
+    shootings <- readShootings
+    sessions <- readSessions
+    grades <- readGrades
+
+    return $ \index file ->
+        let locationName = takeBaseName $ view Location.unLocation location
+            sessionId = show $ Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
+
+            extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+
+            photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
+
+            doneshootingPath = doneshooting ^. Doneshooting.unDoneshooting
+
+            session = sessions ^. Session.unSessions . ListZipper.zipperL
+            shootingId = show $ if session == Session.KindergartenGroup then 3 else Shooting.toInteger $ shootings ^. Shooting.unShootings . ListZipper.zipperL
+
+            grade = view (Grade.unGrades . ListZipper.zipperL) grades
+            gradeId = view Grade.gradeId grade
+            tid = grade ^. Grade.photographees . Grade.unPhotographees . ListZipper.zipperL . Grade.tid
+
+            fileExtension = toLower <$> (FP.takeExtension file)
+
+            pad x = padLeft '0' 3 (show x)
+            no = pad index
+
+            path = doneshootingPath </> locationName </> extension </> gradeId </> sessionId ++ "." ++ tid ++ "." ++ shootingId ++ "." ++ photographerId ++ "." ++ no ++ fileExtension
+        in
+            path
+
+
+mkDagsdatoBackupPath :: forall  r m . WithChan r m => m (String -> FilePath -> FilePath)
+mkDagsdatoBackupPath = do
+    location <- readLocation
+    dagsdatoBackup <- readDagsdatoBackup
+    grades <- readGrades
+    return $ \date file ->
+        let 
+            locationName = takeBaseName $ view Location.unLocation location
+            grade = view (Grade.unGrades . ListZipper.zipperL) grades
+            gradeId = view Grade.gradeId grade
+            photographee = grade ^. Grade.photographees . Grade.unPhotographees . ListZipper.zipperL
+            tid = photographee ^. Grade.tid
+            name = photographee ^. Grade.name
+            dagsdatoBackupPath = dagsdatoBackup ^. DagsdatoBackup.unDagsdatoBackup
+            fileExtension = toLower <$> (FP.takeExtension file)
+            path = dagsdatoBackupPath </> date ++ " - " ++ locationName </> gradeId </> (name ++ " - " ++ tid) </> file -<.> fileExtension
+        in
+            path
+
+mkDagsdatoPath :: forall  r m . WithChan r m => m (String -> FilePath -> FilePath)
+mkDagsdatoPath = do
+    location <- readLocation
+    dagsdato <- readDagsdato
+    grades <- readGrades
+    return $ \date file ->
+        let 
+            locationName = takeBaseName $ view Location.unLocation location
+            grade = view (Grade.unGrades . ListZipper.zipperL) grades
+            gradeId = view Grade.gradeId grade
+            photographee = grade ^. Grade.photographees . Grade.unPhotographees . ListZipper.zipperL
+            tid = photographee ^. Grade.tid
+            name = photographee ^. Grade.name
+            dagsdatoPath = dagsdato ^. Dagsdato.unDagsdato
+            fileExtension = toLower <$> (FP.takeExtension file)
+            path = dagsdatoPath </> date ++ " - " ++ locationName </> gradeId </> (name ++ " - " ++ tid) </> file -<.> fileExtension
+        in
+            path
+
+
+padLeft :: Char -> Int -> String -> String
+padLeft c n s = let len = length s
+                    padLen = max 0 (n - len)
+                    padStr = show $ replicate padLen c
+                in  concat [padStr, s]
 
 
 runBuild :: forall  r m . WithChan r m => m ()
@@ -494,17 +616,36 @@ runBuild = do
     photographers <- readPhotographers
     dagsdatoBackup <- readDagsdatoBackup
     dagsdato <- readDagsdato
-    dump <- readDump
+    dumpDir <- readDumpDir
     doneshooting <- readDoneshooting
 
+
     doneshootingDir <- readDoneshootingDir -- SKAL MODELLERS
-    
     let doneshootingFileCount = length doneshootingDir
 
     opts <- getOpts
 
+    doneshootingCrFunc <- mkDoneshootingPath
+    doneshootingJpgFunc <- mkDoneshootingPathJpg
+    dagsdatoFunc <- mkDagsdatoPath
+    dagsdatoBackupFunc <- mkDagsdatoBackupPath
     liftIO $ shake opts $ do
-        Indexed.iforM_ (dump ^. Dump.unDump) $ \ i f -> do -- pair 
+        Indexed.iforM_ (dumpDir ^. DumpDir.unDumpDir) $ \ i f -> do -- pair 
+
+                let crFile = f ^. DumpDir.cr
+                let jpgFile = f ^. DumpDir.jpg
+
+                let index' = doneshootingFileCount + i + 1
+
+                let doneshootingCr = doneshootingCrFunc index' crFile
+                let doneshootingJpg = doneshootingJpgFunc index' jpgFile
+
+                let dagsdatoCr = dagsdatoFunc date crFile
+                let dagsdatoJpg = dagsdatoFunc date jpgFile
+
+                let dagsdatoBackupCr = dagsdatoBackupFunc date crFile
+                let dagsdatoBackupJpg = dagsdatoBackupFunc date jpgFile
+
                 want []
             {-
             ((cr, (doneshootingCr,dagsdatoCr, dagsdatoBackupCr)),(jpg, (doneshootingJpg, dagsdatoJpg, dagsdatoBackupJpg))) -> do
