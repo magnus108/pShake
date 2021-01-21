@@ -143,7 +143,7 @@ entry bValue = do
         Data.Data item -> do
             void $ element input # set
                 value
-                (  extract (Photographer.unPhotographers item)
+                (  extract (Lens.view Photographer.unPhotographers item)
                 ^. Photographer.name
                 )
         _ -> return ()
@@ -162,7 +162,7 @@ entry bValue = do
                 when (not editing) $ void $ do
                     element input # set
                         value
-                        (  extract (Photographer.unPhotographers item)
+                        (  extract (Lens.view Photographer.unPhotographers item)
                         ^. Photographer.name
                         )
                     element content # set children [] #+ [element input]
@@ -179,7 +179,7 @@ entry bValue = do
     return PhotographerEntry { .. }
 
 setName :: Photographer.Photographers -> String -> Photographer.Photographers
-setName photographers name = case Photographer.unPhotographers photographers of
+setName photographers name = case Lens.view Photographer.unPhotographers photographers of
     ListZipper.ListZipper ls x rs ->
         Photographer.Photographers
             $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
@@ -219,12 +219,12 @@ selectShootingF shootings selected = case shootings of
             then Just (Shooting.Shootings shootings'')
             else Nothing
         )
-        (Shooting.unShootings shootings)
+        (Lens.view Shooting.unShootings shootings)
 
 
 mkShootings :: Shooting.Shootings -> [UI Element]
 mkShootings shootings' = do
-    let zipper = Shooting.unShootings shootings'
+    let zipper = Lens.view Shooting.unShootings shootings'
     let elems = ListZipper.iextend
             (\i shootings'' -> (i, zipper == shootings'', extract shootings''))
             zipper
@@ -866,12 +866,12 @@ selectSessionF sessions selected = case sessions of
             then Just (Session.Sessions sessions'')
             else Nothing
         )
-        (Session.unSessions sessions)
+        (Lens.view Session.unSessions sessions)
 
 
 mkSessions :: Session.Sessions -> [UI Element]
 mkSessions sessions' = do
-    let zipper = Session.unSessions sessions'
+    let zipper = Lens.view Session.unSessions sessions'
     let elems = ListZipper.iextend
             (\i sessions'' -> (i, zipper == sessions'', extract sessions''))
             zipper
@@ -934,12 +934,12 @@ selectCameraF cameras selected = case cameras of
             then Just (Camera.Cameras cameras'')
             else Nothing
         )
-        (Camera.unCameras cameras)
+        (Lens.view Camera.unCameras cameras)
 
 
 mkCameras :: Camera.Cameras -> [UI Element]
 mkCameras cameras' = do
-    let zipper = Camera.unCameras cameras'
+    let zipper = Lens.view Camera.unCameras cameras'
     let elems = ListZipper.iextend
             (\i cameras'' -> (i, zipper == cameras'', extract cameras''))
             zipper
@@ -1003,12 +1003,12 @@ selectPhotographerF photographerss selected = case photographerss of
             then Just (Photographer.Photographers photographers'')
             else Nothing
         )
-        (Photographer.unPhotographers photographers)
+        (Lens.view Photographer.unPhotographers photographers)
 
 
 mkPhotographers :: Photographer.Photographers -> [UI Element]
 mkPhotographers photographers' = do
-    let zipper = Photographer.unPhotographers photographers'
+    let zipper = Lens.view Photographer.unPhotographers photographers'
     let elems = ListZipper.iextend
             (\i photographers'' ->
                 (i, zipper == photographers'', extract photographers'')
@@ -1123,7 +1123,7 @@ doneshootingItem folderPicker = mkWriteAttr $ \i x -> void $ do
 
 mkFolderPicker3 :: Doneshooting.Doneshooting -> UI Element
 mkFolderPicker3 doneshooting = do
-    let name' = Doneshooting.unDoneshooting doneshooting
+    let name' = Lens.view Doneshooting.unDoneshooting doneshooting
     UI.p # set text name'
 
 
@@ -1266,7 +1266,7 @@ locationItem filePicker = mkWriteAttr $ \i x -> void $ do
 
 mkFilePicker5 :: Location.Location -> UI Element
 mkFilePicker5 location = do
-    let name' = Location.unLocation location
+    let name' = Lens.view Location.unLocation location
     UI.p # set text name'
 
 

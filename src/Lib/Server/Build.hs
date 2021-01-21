@@ -2,10 +2,12 @@ module Lib.Server.Build
     ( runBuild
     ) where
 
+import qualified System.Directory as SD
 import qualified Data.List.Index as Indexed
 import Development.Shake
 import Development.Shake.FilePath
 import qualified Development.Shake.FilePath as FP
+import qualified Utils.ListZipper              as ListZipper
 
 import           Control.Lens                   ( (^.)
                                                 , (.~)
@@ -32,7 +34,11 @@ import qualified Control.Monad.Except          as E
 import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , readGrades
+                                                , readShootings
                                                 , readPhotographers
+                                                , readSessions
+                                                , readCameras
+                                                , readLocation
                                                 , readDoneshooting
                                                 , readDagsdato
                                                 , readDagsdatoBackup
@@ -456,6 +462,29 @@ getOpts = return $ shakeOptions
         }
 
 
+readDoneshootingDir :: forall  r m . WithChan r m => m [FilePath]
+readDoneshootingDir = do
+    grades <- readGrades
+    let grade = view (Grade.unGrades . ListZipper.zipperL . Grade.gradeId) grades
+    location <- readLocation
+    let locationName = takeBaseName $ view Location.unLocation location
+    sessions <- readSessions
+    let sessionId = Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
+    cameras <- readCameras
+    let extension= Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+    photographers <- readPhotographers
+    let photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
+    shootings <- readShootings
+    sessions <- readSessions
+    let session = sessions ^. Session.unSessions . ListZipper.zipperL
+    let shootingId = show $ if session == Session.KindergartenGroup then 3 else Shooting.toInteger $ shootings ^. Shooting.unShootings . ListZipper.zipperL
+    doneshooting <- readDoneshooting
+    let doneshootingFile = doneshooting ^. Doneshooting.unDoneshooting
+    let path = doneshootingFile </> locationName </> extension </> grade
+    files <- liftIO $ SD.listDirectory path
+    return files
+
+
 runBuild :: forall  r m . WithChan r m => m ()
 runBuild = do
     time <- liftIO getCurrentTime
@@ -467,6 +496,10 @@ runBuild = do
     dagsdato <- readDagsdato
     dump <- readDump
     doneshooting <- readDoneshooting
+
+    doneshootingDir <- readDoneshootingDir -- SKAL MODELLERS
+    
+    let doneshootingFileCount = length doneshootingDir
 
     opts <- getOpts
 

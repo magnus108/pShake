@@ -4,12 +4,15 @@
 module Lib.Model.Session
     ( Session(..)
     , Sessions(..)
+    , unSessions
     , getSessions
     , writeSessions
     , initalState
+    , toInteger
     )
 where
 
+import Prelude hiding (toInteger)
 import           Lib.Model.Data
 import           Utils.ListZipper
 import           Control.Lens
@@ -17,6 +20,13 @@ import           Control.Lens
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
                                                 )
+
+
+toInteger :: Session -> Int
+toInteger KindergartenSingle = 12
+toInteger KindergartenGroup = 12
+toInteger School = 11
+
 
 data Session
     = KindergartenGroup
@@ -29,10 +39,12 @@ data Session
 makeLenses ''Session
 
 
-newtype Sessions = Sessions { unSessions :: ListZipper Session }
+newtype Sessions = Sessions { _unSessions :: ListZipper Session }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
+
+makeLenses ''Sessions
 
 
 getSessions

@@ -7,6 +7,8 @@ module Lib.Model.Camera
     , getCameras
     , writeCameras
     , initalState
+    , unCameras
+    , toExtension
     )
 where
 
@@ -28,10 +30,18 @@ data Camera
 makeLenses ''Camera
 
 
-newtype Cameras = Cameras { unCameras :: ListZipper Camera }
+newtype Cameras = Cameras { _unCameras :: ListZipper Camera }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
+
+
+makeLenses ''Cameras
+
+
+toExtension :: Camera -> String
+toExtension CR2 = "cr2"
+toExtension CR3 = "cr3"
 
 
 getCameras

@@ -2,10 +2,14 @@ module Lib.App.Env
     ( Env(..)
     , Has(..)
     , readGrades
+    , readCameras
     , readDoneshooting
+    , readShootings
     , readDump
+    , readSessions
     , readPhotographers
     , readDagsdato
+    , readLocation
     , readDagsdatoBackup
     , WatchManager(..)
     , StartMap
@@ -500,3 +504,109 @@ readDagsdatoBackup = do
                        )
     putMVar mDagsdatoBackupFile dagsdatoBackupFile
     return dagsdatoBackup
+
+
+type WithLocation r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HLocationFile r
+      , Has MLocationFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readLocation :: forall  r m . WithLocation r m => m Location.Location
+readLocation = do
+    mLocationFile <- unMLocationFile <$> grab @MLocationFile
+    locationFile  <- takeMVar mLocationFile
+    location <- readJSONFile locationFile
+        `catchIOError` (\e -> do
+                           putMVar mLocationFile locationFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mLocationFile locationFile
+    return location
+
+
+type WithSessions r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has HSessions r
+      , Has MSessionsFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readSessions :: forall  r m . WithSessions r m => m Session.Sessions
+readSessions = do
+    mSessionsFile <- unMSessionsFile <$> grab @MSessionsFile
+    sessionsFile <- takeMVar mSessionsFile
+    sessions <- readJSONFile sessionsFile
+        `catchIOError` (\e -> do
+                           putMVar mSessionsFile sessionsFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mSessionsFile sessionsFile
+    return sessions
+
+
+type WithCameras r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has MCamerasFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readCameras :: forall  r m . WithCameras r m => m Camera.Cameras
+readCameras = do
+    mCamerasFile <- unMCamerasFile <$> grab @MCamerasFile
+    camerasFile <- takeMVar mCamerasFile
+    cameras <- readJSONFile camerasFile
+        `catchIOError` (\e -> do
+                           putMVar mCamerasFile camerasFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mCamerasFile camerasFile
+    return cameras
+
+
+type WithShootings r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has MShootingsFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readShootings :: forall  r m . WithShootings r m => m Shooting.Shootings
+readShootings = do
+    mShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
+    shootingsFile <- takeMVar mShootingsFile
+    shootings <- readJSONFile shootingsFile
+        `catchIOError` (\e -> do
+                           putMVar mShootingsFile shootingsFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mShootingsFile shootingsFile
+    return shootings

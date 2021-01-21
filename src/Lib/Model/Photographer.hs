@@ -7,6 +7,7 @@ module Lib.Model.Photographer
     , getPhotographers
     , writePhotographers
     , name
+    , unPhotographers
     , tid
     , initalState
     )
@@ -36,10 +37,13 @@ data Photographer = Photographer
 makeLenses ''Photographer
 
 
-newtype Photographers = Photographers { unPhotographers :: ListZipper Photographer }
+newtype Photographers = Photographers { _unPhotographers :: ListZipper Photographer }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
+
+
+makeLenses ''Photographers
 
 
 getPhotographers

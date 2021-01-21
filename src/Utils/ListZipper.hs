@@ -3,6 +3,7 @@
 
 module Utils.ListZipper
     ( ListZipper(..)
+    , zipperL
     , fromList
     , toN
     , findFirst
@@ -22,6 +23,17 @@ module Utils.ListZipper
     , sorted
     , insert
     ) where
+
+
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                , (%~)
+                                                , lens
+                                                , view
+                                                , Lens'
+                                                )
+import qualified Control.Lens                  as Lens
 
 import Prelude ((-))
 import Data.Semigroup
@@ -185,3 +197,15 @@ instance Foldable ListZipper where
 instance Traversable ListZipper where
     traverse f (ListZipper l x r) =
         ListZipper <$> traverse f l <*> f x <*> traverse f r
+
+
+
+zipperL :: Lens' (ListZipper a) a
+zipperL = lens getter setter
+  where
+    getter :: ListZipper a -> a
+    getter = extract
+
+    setter :: (ListZipper a) -> a -> (ListZipper a)
+    setter (ListZipper ls x rs) new =
+        ListZipper ls new rs

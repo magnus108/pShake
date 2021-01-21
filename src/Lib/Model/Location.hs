@@ -6,6 +6,7 @@ module Lib.Model.Location
     , getLocation
     , writeLocation
     , initalState
+    , unLocation
     )
 where
 
@@ -18,7 +19,7 @@ import           Control.Monad.Catch            ( MonadThrow
                                                 )
 
 
-newtype Location = Location { unLocation :: FilePath }
+newtype Location = Location { _unLocation :: FilePath }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)

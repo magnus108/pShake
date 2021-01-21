@@ -264,7 +264,7 @@ mainTab bGrades bDumpDir bBuild = do
     _elementMainTab <- UI.div
 
     let bPhotographees =
-            fmap (view (Grade.unGrades . zipperL . Grade.photographees))
+            fmap (view (Grade.unGrades . ListZipper.zipperL . Grade.photographees))
                 <$> bGrades
 
     elemBuild <- buildSection bBuild
@@ -313,17 +313,7 @@ mainTab bGrades bDumpDir bBuild = do
     return MainTab { .. }
 
 
-zipperL :: Lens' (ListZipper.ListZipper a) a
-zipperL = lens getter setter
-  where
-    getter :: ListZipper.ListZipper a -> a
-    getter = extract
-
-    setter :: (ListZipper.ListZipper a) -> a -> (ListZipper.ListZipper a)
-    setter (ListZipper.ListZipper ls x rs) new =
-        ListZipper.ListZipper ls new rs
-
 
 setPhotographees :: Grade.Photographees -> Grade.Grades -> Grade.Grades
 setPhotographees photographees grades =
-    Grade.unGrades . zipperL . Grade.photographees .~ photographees $ grades
+    Grade.unGrades . ListZipper.zipperL . Grade.photographees .~ photographees $ grades

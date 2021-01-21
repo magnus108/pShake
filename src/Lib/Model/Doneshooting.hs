@@ -4,6 +4,7 @@
 module Lib.Model.Doneshooting
     ( Doneshooting(..)
     , getDoneshooting
+    , unDoneshooting
     , writeDoneshooting
     , initalState
     )
@@ -18,7 +19,7 @@ import           Control.Monad.Catch            ( MonadThrow
                                                 )
 
 
-newtype Doneshooting = Doneshooting { unDoneshooting :: FilePath }
+newtype Doneshooting = Doneshooting { _unDoneshooting :: FilePath }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
