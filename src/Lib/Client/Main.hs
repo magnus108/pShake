@@ -5,6 +5,8 @@ module Lib.Client.Main
     )
 where
 
+import qualified Data.HashMap.Strict           as HashMap
+import Lib.Client.Text
 import Data.Char
 
 import           Control.Lens                   ( (^.)
@@ -15,6 +17,7 @@ import           Control.Lens                   ( (^.)
                                                 , view
                                                 , Lens'
                                                 )
+import Lib.Client.Translation.Translation
 import qualified Control.Lens                  as Lens
 
 import qualified Relude.Unsafe                 as Unsafe
@@ -169,34 +172,6 @@ mkPhotographee (thisIndex, isCenter, photographee) = do
     let option = UI.option # set value (show thisIndex) # set text name
     if isCenter then option # set UI.selected True else option
 -------------------------------------------------------------------------------
-data TextEntry = TextEntry
-    { _elementTE :: Element
-    , _userTE    :: Tidings String
-    }
-
-instance Widget TextEntry where
-    getElement = _elementTE
-
-userText :: TextEntry -> Tidings String
-userText = _userTE
-
-entry :: Behavior String -> UI TextEntry
-entry bValue = do
-    input    <- UI.input
-
-    bEditing <- stepper False $ and <$> unions
-        [True <$ UI.focus input, False <$ UI.blur input]
-
-    window <- askWindow
-    liftIOLater $ Reactive.onChange bValue $ \s -> runUI window $ do
-        editing <- liftIO $ currentValue bEditing
-        when (not editing) $ void $ element input # set value s
-
-    let _elementTE = input
-        _userTE    = tidings bValue $ UI.valueChange input
-
-    return TextEntry { .. }
--------------------------------------------------------------------------------
 data SearchEntry a = SearchEntry
     { _elementSearch :: Element
     , _search    :: Event (Maybe (ListZipper.ListZipper a))
@@ -259,7 +234,7 @@ mainTab
     -> Behavior (Data.Data String DumpDir.DumpDir)
     -> Behavior (Data.Data String Build.Build)
     -> UI MainTab
-mainTab bGrades bDumpDir bBuild = do
+mainTab bGrades bDumpDir bBuild = mdo
 
     _elementMainTab <- UI.div
 
@@ -301,6 +276,22 @@ mainTab bGrades bDumpDir bBuild = do
 
     let _eBuild = _build elemBuild
 
+
+
+
+    switchMode <- UI.button # set text "skift"
+    let eSwitchMode = UI.click switchMode
+
+    bMode <- stepper Normal $ toggle <$> bMode <@ eSwitchMode
+    let bKey = pure "ok"
+
+    test <- translation bTranslations bMode bKey
+    let eTest = _translation test
+
+    bTranslations <- stepper (HashMap.fromList [("ok", "OK!"), ("photographer","Fotograf")]) $
+            Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
+
+
     element _elementMainTab
         #+ [ element elemGrades
            , element elemPhotographees
@@ -308,6 +299,8 @@ mainTab bGrades bDumpDir bBuild = do
            , element elemDumpDirCount
            , element elemSearch
            , element elemBuild
+           , element test
+           , element switchMode
            ]
 
     return MainTab { .. }
