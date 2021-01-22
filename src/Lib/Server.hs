@@ -1747,7 +1747,7 @@ setupStartMap = do
     let newStartMap7 = HashMap.insert key7 watcher7 newStartMap6
 
     let key8          = "dagsdatoBackup"
-    let watcher8      = Watchers.dagsdatoFile
+    let watcher8      = Watchers.dagsdatoBackupFile
     let newStartMap8 = HashMap.insert key8 watcher8 newStartMap7
 
     let key9          = "sessions"
@@ -2377,14 +2377,16 @@ receiveMessages window = do
 
             Message.RunBuild -> do
                 runBuild `E.catchError` (\e -> do
-                                                        traceShowM "wtf6"
-                                                    )
+                                        traceShowM e
+                                        traceShowM "wtf6"
+                                        )
 
 --------------------------------------------------------------------------------
 
 runBuild :: forall  r m . WithChan r m => m ()
 runBuild = ServerBuild.runBuild
         `catchIOError` (\e -> do
+                           traceShowM e
                            if isUserError e
                                then E.throwError
                                    (InternalError $ ServerError (show e))

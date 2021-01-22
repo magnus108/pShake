@@ -2,6 +2,7 @@ module Lib.Server.Build
     ( runBuild
     ) where
 
+import System.IO.Error (tryIOError)
 import Data.Char
 import qualified System.Directory as SD
 import qualified Data.List.Index as Indexed
@@ -190,7 +191,7 @@ readDoneshootingDir = do
     sessions <- readSessions
     let sessionId = Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
     cameras <- readCameras
-    let extension= Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+    let extension = filter ((/=) '.') $ Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
     photographers <- readPhotographers
     let photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
     shootings <- readShootings
@@ -200,8 +201,8 @@ readDoneshootingDir = do
     doneshooting <- readDoneshooting
     let doneshootingPath = doneshooting ^. Doneshooting.unDoneshooting
     let path = doneshootingPath </> locationName </> extension </> grade
-    files <- liftIO $ SD.listDirectory path
-    return files
+    files <- liftIO $ tryIOError $ SD.listDirectory path
+    return $ either (\_ -> []) (\xs -> xs) files
 
 
 mkDoneshootingPathJpg :: forall  r m . WithChan r m => m (Int -> FilePath -> FilePath)
@@ -219,7 +220,7 @@ mkDoneshootingPathJpg = do
         let locationName = takeBaseName $ view Location.unLocation location
             sessionId = show $ Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
 
-            extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+            extension = filter ((/=) '.') $ Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
 
             photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
 
@@ -255,7 +256,7 @@ mkDoneshootingPath = do
         let locationName = takeBaseName $ view Location.unLocation location
             sessionId = show $ Session.toInteger $ sessions ^. Session.unSessions . ListZipper.zipperL
 
-            extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
+            extension = filter ((/=) '.') $ Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
 
             photographerId = photographers ^. Photographer.unPhotographers . ListZipper.zipperL . Photographer.tid
 
@@ -338,8 +339,10 @@ runBuild = do
     doneshooting <- readDoneshooting
 
 
+    traceShowM "FUCK"
     doneshootingDir <- readDoneshootingDir -- SKAL MODELLERS
     let doneshootingFileCount = length doneshootingDir
+    traceShowM "FUCK2"
 
     opts <- getOpts
 
@@ -366,7 +369,9 @@ runBuild = do
 
                 want [doneshootingCr, doneshootingJpg, dagsdatoCr, dagsdatoJpg, dagsdatoBackupCr, dagsdatoBackupJpg]
 
+                traceShowM "FUCK"
                 doneshootingCr %> copyFile' crFile
+                traceShowM "UNFUCK"
 
                 doneshootingJpg %> copyFile' jpgFile
 
