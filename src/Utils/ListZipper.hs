@@ -20,6 +20,7 @@ module Utils.ListZipper
     , forward
     , toList
     , iextend
+    , bextend
     , sorted
     , insert
     ) where
@@ -141,6 +142,10 @@ toNonEmpty (ListZipper ls x rs) = appendr (reverse ls) (x :| rs)
 
 iextend :: (Int -> ListZipper a -> b) -> ListZipper a -> ListZipper b 
 iextend f = fmap (\xs@(ListZipper ls _ _) -> f (length ls) xs) . duplicate
+
+
+bextend :: Eq a => (Bool -> ListZipper a -> b) -> ListZipper a -> ListZipper b 
+bextend f s = fmap (\xs@(ListZipper ls x _) -> f (extract s == x) xs) (duplicate s)
 
 --move me
 insert' :: Ord a => a -> [a] -> [a]

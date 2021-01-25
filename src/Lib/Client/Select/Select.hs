@@ -2,9 +2,11 @@
 module Lib.Client.Select.Select
     ( Select(..)
     , select
+    , test
     )
 where
 
+import Prelude hiding (get)
 import qualified Relude.Unsafe as Unsafe
 import Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
@@ -24,77 +26,49 @@ import qualified Graphics.UI.Threepenny        as UI
 
 data Select a = Select
     { _container :: Element
-    , _selections :: [Event (ListZipper.ListZipper a)]
+    , _selection :: Event (ListZipper.ListZipper a)
     }
 
 instance Widget (Select a) where
     getElement = _container
 
 
-ggg :: UI (Select String)
-ggg = mdo
-    let bDisplay = pure $ \x -> UI.button # set text x
+test :: UI (Select String)
+test = mdo
+    let bDisplay = pure $ \b x -> let button = UI.button # set text x in
+                                        if b then set style [("color", "blue")] button else button
 
     selectors <- select bZipper bDisplay
 
-    let eSelections = _selections selectors
+    let eSelection = _selection selectors
 
-    bZipper <- stepper (ListZipper.ListZipper [] "h" ["h2"]) $ Unsafe.head <$> unions eSelections
+    bZipper <- stepper (ListZipper.ListZipper [] "h" ["h2"]) eSelection
 
     return selectors
 
 
 
-select :: Behavior (ListZipper.ListZipper a) -> Behavior (a -> UI Element) -> UI (Select a)
+select :: (Show a, Eq a) => Behavior (ListZipper.ListZipper a) -> Behavior (Bool -> a -> UI Element) -> UI (Select a)
 select bZipper bDisplay = do
+    (_selection, _handle) <- liftIO $ newEvent
 
     _container <- UI.div
 
-    {-
-    let bDisplay' = bDisplay <&> \f (zipper :: ListZipper.ListZipper a) -> do
-                                    display <- f (extract zipper)
-                                    let event = zipper <$ UI.click display
-                                    return $ (display, event)
-                                    -}
+    -- is this dangerous?
+    let bDisplay' = bDisplay <&> \f b (zipper :: ListZipper.ListZipper a) -> do
+                                    display <- f b (extract zipper)
 
-    let bDisplay' = bDisplay <&> \f (zipper :: ListZipper.ListZipper a) -> (f (extract zipper), zipper)
-    --bButtons :: Behavior (ListZipper.ListZipper (UI Element, Event (ListZipper.ListZipper a))))
-    let bButtons = extend <$> bDisplay' <*> bZipper
+                                    UI.on UI.click display $ \_ -> do
+                                        liftIO $ _handle zipper
 
-    element _container # sink items (fmap fst <$> bButtons)
+                                    return $ display
 
-    let _selections = [UI.never]
+    let bButtons = ListZipper.bextend <$> bDisplay' <*> bZipper
+
+    _ <- element _container # sink items bButtons
 
     return Select { .. }
 
-sink2 :: Behavior (ListZipper.ListZipper (UI Element, ListZipper.ListZipper a)) -> UI x -> UI (x, [Event (ListZipper.ListZipper a)])
-sink2 bi mx = do
-    x <- mx
-
-    window <- askWindow
-    i <- currentValue bi
-
-    events <- sequence (fmap (\i' -> do
-                    display <- fst i'
-                    let e = snd i' <$ UI.click display
-                    return e
-                 ) i)
-    let events2 = toList events
-    _
-    {-
-    liftIOLater $ runUI window $ void $ do
-        return x # set children [] #+ (ListZipper.toList (fmap fst i))
-        -}
-
-    {-
-    liftIOLater $ do
-        i <- currentValue bi
-        Reactive.onChange bi  $ \i -> runUI window $ do
-            return x # set children [] #+ (ListZipper.toList (fmap fst i))
-
--}
-
-    return (x, [])
 
 items :: WriteAttr Element (ListZipper.ListZipper (UI Element))
 items = mkWriteAttr $ \i x -> void $ do

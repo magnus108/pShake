@@ -18,7 +18,7 @@ import           Control.Lens                   ( (^.)
                                                 , Lens'
                                                 )
 import Lib.Client.Translation.Translation
-import qualified Lib.Client.Select.Select
+import qualified Lib.Client.Select.Select as Select
 import qualified Control.Lens                  as Lens
 
 import qualified Relude.Unsafe                 as Unsafe
@@ -293,6 +293,8 @@ mainTab bGrades bDumpDir bBuild = mdo
             Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
 
 
+
+    gg <- Select.test
     element _elementMainTab
         #+ [ element elemGrades
            , element elemPhotographees
@@ -302,6 +304,7 @@ mainTab bGrades bDumpDir bBuild = mdo
            , element elemBuild
            , element test
            , element switchMode
+           , element gg
            ]
 
     return MainTab { .. }
