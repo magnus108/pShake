@@ -18,6 +18,7 @@ import           Control.Lens                   ( (^.)
                                                 , Lens'
                                                 )
 import Lib.Client.Translation.Translation
+import qualified Lib.Client.Select.Select
 import qualified Control.Lens                  as Lens
 
 import qualified Relude.Unsafe                 as Unsafe
