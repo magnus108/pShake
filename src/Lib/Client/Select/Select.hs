@@ -6,6 +6,7 @@ module Lib.Client.Select.Select
     )
 where
 
+import qualified Lib.Model.Data                as Data
 import Prelude hiding (get)
 import qualified Relude.Unsafe as Unsafe
 import Utils.Comonad
@@ -26,7 +27,7 @@ import qualified Graphics.UI.Threepenny        as UI
 
 data Select a = Select
     { _container :: Element
-    , _selection :: Event (ListZipper.ListZipper a)
+    , _selection :: Event (Data.Data String (ListZipper.ListZipper a))
     }
 
 instance Widget (Select a) where
@@ -42,13 +43,13 @@ test = mdo
 
     let eSelection = _selection selectors
 
-    bZipper <- stepper (ListZipper.ListZipper [] "h" ["h2"]) eSelection
+    bZipper <- stepper (Data.Data (ListZipper.ListZipper [] "h" ["h2"])) eSelection
 
     return selectors
 
 
 
-select :: (Show a, Eq a) => Behavior (ListZipper.ListZipper a) -> Behavior (Bool -> a -> UI Element) -> UI (Select a)
+select :: (Show a, Eq a) => Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (Bool -> a -> UI Element) -> UI (Select a)
 select bZipper bDisplay = do
     (_selection, _handle) <- liftIO $ newEvent
 
@@ -59,17 +60,24 @@ select bZipper bDisplay = do
                                     display <- f b (extract zipper)
 
                                     UI.on UI.click display $ \_ -> do
-                                        liftIO $ _handle zipper
+                                        liftIO $ _handle (Data.Data zipper)
 
                                     return $ display
 
-    let bButtons = ListZipper.bextend <$> bDisplay' <*> bZipper
+    let bButtons = (\d z -> fmap (ListZipper.bextend d) z) <$> bDisplay' <*> bZipper
 
     _ <- element _container # sink items bButtons
 
     return Select { .. }
 
 
-items :: WriteAttr Element (ListZipper.ListZipper (UI Element))
+items :: WriteAttr Element (Data.Data String (ListZipper.ListZipper (UI Element)))
 items = mkWriteAttr $ \i x -> void $ do
-    return x # set children [] #+ (ListZipper.toList i)
+    case i of
+        Data.NotAsked  -> return x # set text "Not Asked"
+        Data.Loading   -> return x # set text "bobo"
+        Data.Failure e -> do
+            err <- string (show e)
+            return x # set children [] #+ [element err]
+        Data.Data item -> do
+            return x # set children [] #+ (ListZipper.toList item)

@@ -4,6 +4,7 @@
 module Lib.Model.Tab
     ( Tab(..)
     , Tabs(..)
+    , unTabs
     , getTabs
     , writeTabs
     , initalState
@@ -38,10 +39,12 @@ data Tab
 
 makeLenses ''Tab
 
-newtype Tabs = Tabs { unTabs :: ListZipper Tab }
+newtype Tabs = Tabs { _unTabs :: ListZipper Tab }
     deriving (Eq, Ord, Show)
     deriving (Generic)
     deriving anyclass (FromJSON, ToJSON)
+
+makeLenses ''Tabs
 
 
 getTabs

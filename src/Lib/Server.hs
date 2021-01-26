@@ -9,6 +9,7 @@ import Data.List
 import qualified System.FilePath as FP
 import System.Directory
 import qualified Lib.Client.Main               as Main
+import qualified Lib.Client.Select.Select               as Select
 
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
@@ -1280,7 +1281,7 @@ mkFilePicker5 location = do
 
 data TabsBox a = TabsBox
     { _tabsE :: Element
-    , _tabsPB :: !(Tidings (Maybe Tab.Tabs))
+    , _tabsPB :: Event Tab.Tabs
     }
 
 instance Widget (TabsBox a) where
@@ -1320,8 +1321,18 @@ tabsBox
            )
 tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
     = do
-        _tabsE                 <- UI.div
-        list                   <- UI.select
+        _tabsE             <- UI.div
+        _ss                 <- UI.div
+
+        let bDisplay = pure $ \b x -> let button = UI.button # set text (show x) in
+                                            if b then set style [("color", "blue")] button else button
+
+        let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
+
+        selectors <- Select.select bZipper bDisplay
+
+        let eSelection = Select._selection selectors
+
 
         elemPhotographers      <- listBox bPhotographers
         elemShootings          <- listBoxShootings bShootings
@@ -1342,9 +1353,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         elemMainTab <- Main.mainTab bGrades bDumpDir bBuild
 
-        element _tabsE
+        element _ss
             # sink
-                  (tabItems list
+                  (tabItems
                             elemPhotographers
                             elemShootings
                             elemDump
@@ -1363,12 +1374,11 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
                   bTabs
 
+        menu <- element selectors
+        element _tabsE # set children [ menu, _ss]
 
-        let _tabsPB =
-                tidings (Data.toJust <$> bTabs)
-                    $   selectTabF
-                    <$> (Data.toJust <$> bTabs)
-                    <@> (filterJust (UI.selectionChange list))
+
+        let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection
 
         return
             ( elemPhotographers
@@ -1396,12 +1406,12 @@ selectTabF tabs selected = case tabs of
         (\thisIndex tabs'' ->
             if selected == thisIndex then Just (Tab.Tabs tabs'') else Nothing
         )
-        (Tab.unTabs tabs)
+        (Lens.view Tab.unTabs tabs)
 
 
 mkTabs :: Tab.Tabs -> [UI Element]
 mkTabs tabs' = do
-    let zipper = Tab.unTabs tabs'
+    let zipper = Lens.view Tab.unTabs tabs'
     let elems = ListZipper.iextend
             (\i tabs'' -> (i, zipper == tabs'', extract tabs''))
             zipper
@@ -1414,7 +1424,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
     if isCenter then option # set UI.selected True else option
 
 
-tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
+tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
     = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
@@ -1423,84 +1433,70 @@ tabItems list photographers shootings dump dagsdato cameras doneshooting dagsdat
                 err <- string (show e)
                 return x # set children [] #+ [element err]
             Data.Data item -> do
-                case extract (Tab.unTabs item) of
+                case extract (Lens.view Tab.unTabs item) of
                     Tab.MainTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children [] -- THIS IS DANGEROUS?
-                            #+ [element list, element mainTab]
+                            #+ [element mainTab]
 
                     Tab.ShootingsTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element shootings]
+                            #+ [element shootings]
 
                     Tab.LocationTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [ element list
-                               , element location
+                            #+ [ element location
                                , element grades
                                , element gradesInput
                                ]
 
                     Tab.SessionsTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element sessions]
+                            #+ [element sessions]
 
                     Tab.CamerasTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element cameras]
+                            #+ [element cameras]
 
                     Tab.DumpTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element dump]
+                            #+ [element dump]
 
                     Tab.DoneshootingTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element doneshooting]
+                            #+ [element doneshooting]
 
                     Tab.DagsdatoTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element dagsdato]
+                            #+ [element dagsdato]
 
                     Tab.DagsdatoBackupTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element dagsdatoBackup]
+                            #+ [element dagsdatoBackup]
 
                     Tab.PhotographersTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [element list, element photographers]
+                            #+ [element photographers]
 
                     Tab.InsertPhotographeeTab -> do
-                        element list # set children [] #+ (mkTabs item)
                         return x
                             #  set children []
-                            #+ [ element list
-                               , element photographeesInput
+                            #+ [ element photographeesInput
                                , element photographeesInput2
                                ]
 
 
                     _ -> do
-                        element list # set children [] #+ (mkTabs item)
-                        return x # set children [] #+ [element list]
+                        return x # set children [] #+ []
 
 --------------------------------------------------------------------------------
 example :: [String] -> JavaScript.JSObject -> JSFunction ()
@@ -1648,7 +1644,7 @@ setup env@Env {..} win = mdo
 
     ------------------------------------------------------------------------------
 
-    let eElem3 = filterJust $ rumors $ _tabsPB elem3
+    let eElem3 = _tabsPB elem3
     _ <- onEvent eElem3 $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteTabs item)
