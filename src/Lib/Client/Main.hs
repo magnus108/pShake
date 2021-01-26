@@ -294,7 +294,6 @@ mainTab bGrades bDumpDir bBuild = mdo
 
 
 
-    gg <- Select.test
     element _elementMainTab
         #+ [ element elemGrades
            , element elemPhotographees
@@ -304,7 +303,6 @@ mainTab bGrades bDumpDir bBuild = mdo
            , element elemBuild
            , element test
            , element switchMode
-           , element gg
            ]
 
     return MainTab { .. }

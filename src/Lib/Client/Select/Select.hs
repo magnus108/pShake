@@ -2,7 +2,6 @@
 module Lib.Client.Select.Select
     ( Select(..)
     , select
-    , test
     )
 where
 
@@ -32,21 +31,6 @@ data Select a = Select
 
 instance Widget (Select a) where
     getElement = _container
-
-
-test :: UI (Select String)
-test = mdo
-    let bDisplay = pure $ \b x -> let button = UI.button # set text x in
-                                        if b then set style [("color", "blue")] button else button
-
-    selectors <- select bZipper bDisplay
-
-    let eSelection = _selection selectors
-
-    bZipper <- stepper (Data.Data (ListZipper.ListZipper [] "h" ["h2"])) eSelection
-
-    return selectors
-
 
 
 select :: (Show a, Eq a) => Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (Bool -> a -> UI Element) -> UI (Select a)

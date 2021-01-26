@@ -14,13 +14,13 @@ import qualified Lib.Model.Session             as Session
 
 import qualified Lib.Model.Location            as Location
 import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.DumpDir                as DumpDir
-import qualified Lib.Model.Build                as Build
+import qualified Lib.Model.DumpDir             as DumpDir
+import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
-import qualified Lib.Model.Grade              as Grade
+import qualified Lib.Model.Grade               as Grade
 
 import qualified Lib.App                       as App
 import           Graphics.UI.Threepenny.Core
@@ -80,10 +80,10 @@ mkAppEnv port Config.Config {..} = do
     mTranslationFile  <- newMVar translationFile
     mPhotograheesFile <- newMVar photograheesFile
 
-    mBuildFile'        <- newMVar buildFile
+    mBuildFile'       <- newMVar buildFile
     let mBuildFile = App.MBuildFile mBuildFile'
 
-    mStopMap'         <- newMVar mempty
+    mStopMap' <- newMVar mempty
     let mStopMap = App.MStopMap mStopMap'
     mStartMap' <- newMVar mempty
     let mStartMap = App.MStartMap mStartMap'
@@ -108,10 +108,10 @@ mkAppEnv port Config.Config {..} = do
     (eDumpDir             , hDumpDir'            ) <- Reactive.newEvent
     let hDumpDir = App.HDumpDir hDumpDir'
 
-    (eConfigDumpDir, hConfigDumpDir' ) <- Reactive.newEvent
+    (eConfigDumpDir, hConfigDumpDir') <- Reactive.newEvent
     let hConfigDumpDir = App.HConfigDumpDir hConfigDumpDir'
 
-    (eTabs      , hTabs'     ) <- Reactive.newEvent
+    (eTabs, hTabs') <- Reactive.newEvent
     let hTabs = App.HTabs hTabs'
 
     (ePhotographers, hPhotographers') <- Reactive.newEvent
@@ -126,7 +126,7 @@ mkAppEnv port Config.Config {..} = do
     (eSessions, hSessions') <- Reactive.newEvent
     let hSessions = App.HSessions hSessions'
 
-    (eGrades      , hGrades'       ) <- Reactive.newEvent
+    (eGrades, hGrades') <- Reactive.newEvent
     let hGrades = App.HGrades hGrades'
 
     (eLocationFile, hLocationFile') <- Reactive.newEvent
@@ -134,10 +134,10 @@ mkAppEnv port Config.Config {..} = do
 
     (ePhotographees, hPhotographees) <- Reactive.newEvent
 
-    (eBuild        , hBuild'        ) <- Reactive.newEvent
+    (eBuild        , hBuild'       ) <- Reactive.newEvent
     let hBuild = App.HBuild hBuild'
 
-    watchManager'                    <- FS.startManagerConf
+    watchManager' <- FS.startManagerConf
         (FS.defaultConfig
             { FS.confDebounce = FS.Debounce
                                     (Clock.secondsToNominalDiffTime 0.0000001)
@@ -149,7 +149,7 @@ mkAppEnv port Config.Config {..} = do
 
     bTabs              <- Reactive.stepper Tab.initalState eTabs
 
-    bBuild              <- Reactive.stepper Build.initalState eBuild
+    bBuild             <- Reactive.stepper Build.initalState eBuild
 
     bShootings         <- Reactive.stepper Shooting.initalState eShootings
 
@@ -158,7 +158,7 @@ mkAppEnv port Config.Config {..} = do
     bCameras           <- Reactive.stepper Camera.initalState eCameras
 
     bDumpDir           <- Reactive.stepper Dump.initalState eDumpDir
-    bConfigDumpDir           <- Reactive.stepper DumpDir.initalState eConfigDumpDir
+    bConfigDumpDir     <- Reactive.stepper DumpDir.initalState eConfigDumpDir
 
     bDagsdatoDir       <- Reactive.stepper Dagsdato.initalState eDagsdatoDir
 
@@ -170,7 +170,7 @@ mkAppEnv port Config.Config {..} = do
 
     bLocationFile <- Reactive.stepper Location.initalState eLocationFile
 
-    bGrades          <- Reactive.stepper Grade.initalState eGrades
+    bGrades       <- Reactive.stepper Grade.initalState eGrades
 
     pure Env { .. }
 
@@ -181,6 +181,7 @@ runServer env@Env {..} = do
                            , jsPort                     = Just port
                            , jsStatic                   = Just static
                            , jsCustomHTML               = Just index
+                           , jsCallBufferMode           = NoBuffering
                            }
         $ setup env
 

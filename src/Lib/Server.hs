@@ -1324,8 +1324,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         _tabsE             <- UI.div
         _ss                 <- UI.div
 
-        let bDisplay = pure $ \b x -> let button = UI.button # set text (show x) in
-                                            if b then set style [("color", "blue")] button else button
+        let bDisplay = pure $ \b x -> let button = UI.button #. "button" # set text (show x) in
+                                            if b then button #. "button is-info is-selected" else button
 
         let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
 
@@ -1374,7 +1374,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
                   bTabs
 
-        menu <- element selectors
+        menu <- element selectors #. "buttons has-addons"
         element _tabsE # set children [ menu, _ss]
 
 
@@ -1507,7 +1507,6 @@ example options callback = ffi
 
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
-    _ <- setCallBufferMode NoBuffering
     _ <- return win # set title "FF"
 
     (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
