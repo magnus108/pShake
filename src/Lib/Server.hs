@@ -10,6 +10,7 @@ import qualified System.FilePath as FP
 import System.Directory
 import qualified Lib.Client.Main               as Main
 import qualified Lib.Client.Select.Select               as Select
+import qualified Lib.Client.Select.Dropdown               as Dropdown
 
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
@@ -1303,7 +1304,7 @@ tabsBox
     -> Behavior (Data.Data String DumpDir.DumpDir)
     -> Behavior (Data.Data String Build.Build)
     -> UI
-           ( PhotographersBox b
+           ( Event Photographer.Photographers
            , ShootingsBox c
            , DumpBox d
            , DagsdatoBox e
@@ -1334,7 +1335,11 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let eSelection = Select._selection selectors
 
 
-        elemPhotographers      <- listBox bPhotographers
+        let bDisplay2 = pure $ \x -> x ^. Photographer.name
+        photographers      <- Dropdown.dropdown (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers) bDisplay2
+        let eSelection2 = Dropdown._selection photographers
+
+
         elemShootings          <- listBoxShootings bShootings
         elemDump               <- listBoxDump bDump
         elemDagsdato           <- listBoxDagsdato bDagsdato
@@ -1356,7 +1361,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         element _ss
             # sink
                   (tabItems
-                            elemPhotographers
+                            photographers
                             elemShootings
                             elemDump
                             elemDagsdato
@@ -1380,8 +1385,10 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection
 
+        let ePhotographers = filterJust $ Data.toJust <$> fmap Photographer.Photographers <$> eSelection2
+
         return
-            ( elemPhotographers
+            ( ePhotographers
             , elemShootings
             , elemDump
             , elemDagsdato
@@ -1509,7 +1516,7 @@ setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
     _ <- return win # set title "FF"
 
-    (elemPhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
+    (ePhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
         tabsBox bTabs
                 bPhotographers
                 bShootings
@@ -1546,8 +1553,7 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.RunBuild)
 
-    let eElemPhotographers =
-            filterJust $ rumors $ _photographersPB elemPhotographers
+    let eElemPhotographers = ePhotographers
     _ <- onEvent eElemPhotographers $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)

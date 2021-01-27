@@ -31,6 +31,7 @@ library
       Lib.App.Error
       Lib.App.Monad
       Lib.Client.Main
+      Lib.Client.Select.Dropdown
       Lib.Client.Select.Select
       Lib.Client.Text
       Lib.Client.Translation.Translation
