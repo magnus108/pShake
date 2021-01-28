@@ -3,6 +3,7 @@ module Lib.Client.Translation.Translation
     ( Mode(..)
     , Translation(..)
     , translation
+    , Translations
     , toggle
     )
 where

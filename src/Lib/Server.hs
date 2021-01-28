@@ -4,6 +4,7 @@ module Lib.Server
     )
 where
 
+import qualified Lib.Client.Translation.Translation as Translation
 import Data.Char
 import Data.List
 import qualified System.FilePath as FP
@@ -11,6 +12,11 @@ import System.Directory
 import qualified Lib.Client.Main               as Main
 import qualified Lib.Client.Select.Select               as Select
 import qualified Lib.Client.Select.Dropdown               as Dropdown
+import qualified Lib.Client.DumpTab               as DumpTab
+import qualified Lib.Client.DagsdatoTab               as DagsdatoTab
+import qualified Lib.Client.DagsdatoBackupTab               as DagsdatoBackupTab
+import qualified Lib.Client.PhotographersTab               as PhotographersTab
+import qualified Lib.Client.CamerasTab               as CamerasTab 
 
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
@@ -1283,6 +1289,11 @@ mkFilePicker5 location = do
 data TabsBox a = TabsBox
     { _tabsE :: Element
     , _tabsPB :: Event Tab.Tabs
+    , _eDump :: Event ()
+    , _eDagsdato :: Event ()
+    , _eDagsdatoBackup :: Event ()
+    , _ePhotographers :: Event Photographer.Photographers
+    , _eCameras :: Event Camera.Cameras
     }
 
 instance Widget (TabsBox a) where
@@ -1304,13 +1315,8 @@ tabsBox
     -> Behavior (Data.Data String DumpDir.DumpDir)
     -> Behavior (Data.Data String Build.Build)
     -> UI
-           ( Event Photographer.Photographers
-           , ShootingsBox c
-           , DumpBox d
-           , DagsdatoBox e
-           , CamerasBox f
+           ( ShootingsBox c
            , DoneshootingBox f
-           , DagsdatoBackupBox e
            , SessionsBox g
            , LocationBox h
            , GradesBox i
@@ -1321,12 +1327,24 @@ tabsBox
            , TabsBox a
            )
 tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
-    = do
+    = mdo
         _tabsE             <- UI.div
         _ss                 <- UI.div
 
-        let bDisplay = pure $ \b x -> let button = UI.button #. "button" # set text (show x) in
-                                            if b then button #. "button is-info is-selected" else button
+
+        switchMode <- UI.button # set text "skift"
+        let eSwitchMode = UI.click switchMode
+        bMode <- stepper Translation.Normal $ Translation.toggle <$> bMode <@ eSwitchMode
+        bTranslations <- stepper (HashMap.fromList [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]) $ UI.never
+
+
+        let bDisplay = pure $ \b x -> do 
+                                trans <- Translation.translation bTranslations bMode (pure (show x))
+                                let button = UI.button #. "button" #+ [element trans]
+                                if b then button #. "button is-info is-selected" else button
+
+
+
 
         let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
 
@@ -1334,20 +1352,14 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let eSelection = Select._selection selectors
 
-
-        let bDisplay2 = pure $ \b x -> let button = UI.button #. "button" # set text (x ^. Photographer.name) in
-                                            if b then button #. "button is-info is-selected" else button
-
-        photographers      <- Dropdown.dropdown (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers) bDisplay2
-        let eSelection2 = Dropdown._selection photographers
-
+        photographers <- PhotographersTab.photographersTab bTranslations bMode bPhotographers
 
         elemShootings          <- listBoxShootings bShootings
-        elemDump               <- listBoxDump bDump
-        elemDagsdato           <- listBoxDagsdato bDagsdato
-        elemCameras            <- listBoxCameras bCameras
+        elemDump               <- DumpTab.dumpTab bTranslations bMode bDump
+        elemDagsdato           <- DagsdatoTab.dagsdatoTab bTranslations bMode bDagsdato
+        cameras            <- CamerasTab.camerasTab bTranslations bMode bCameras
         elemDoneshooting       <- listBoxDoneshooting bDoneshooting
-        elemDagsdatoBackup     <- listBoxDagsdatoBackup bDagsdatoBackup
+        elemDagsdatoBackup     <- DagsdatoBackupTab.dagsdatoBackupTab bTranslations bMode bDagsdatoBackup
         elemSessions           <- listBoxSessions bSessions
         elemLocation           <- listBoxLocation bLocation
         elemGrades             <- listBoxGrades bGrades
@@ -1367,7 +1379,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemShootings
                             elemDump
                             elemDagsdato
-                            elemCameras
+                            cameras
                             elemDoneshooting
                             elemDagsdatoBackup
                             elemSessions
@@ -1386,17 +1398,16 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
         let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection
+        let _eDump = DumpTab._selection elemDump
+        let _eDagsdato = DagsdatoTab._selection elemDagsdato
+        let _eDagsdatoBackup = DagsdatoBackupTab._selection elemDagsdatoBackup
+        let _ePhotographers = PhotographersTab._selection photographers
+        let _eCameras = CamerasTab._selection cameras
 
-        let ePhotographers = filterJust $ Data.toJust <$> fmap Photographer.Photographers <$> eSelection2
 
         return
-            ( ePhotographers
-            , elemShootings
-            , elemDump
-            , elemDagsdato
-            , elemCameras
+            ( elemShootings
             , elemDoneshooting
-            , elemDagsdatoBackup
             , elemSessions
             , elemLocation
             , elemGrades
@@ -1518,7 +1529,7 @@ setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
     _ <- return win # set title "FF"
 
-    (ePhotographers, elemShootings, elemDump, elemDagsdato, elemCameras, elemDoneshooting, elemDagsdatoBackup, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
+    (elemShootings, elemDoneshooting, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
         tabsBox bTabs
                 bPhotographers
                 bShootings
@@ -1555,8 +1566,8 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.RunBuild)
 
-    let eElemPhotographers = ePhotographers
-    _ <- onEvent eElemPhotographers $ \item -> do
+    let ePhotographers = _ePhotographers elem3
+    _ <- onEvent ePhotographers $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
 
@@ -1592,8 +1603,8 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback <- ffiExport fx
-    let eElemDump = rumors $ _dumpPB elemDump
-    _ <- onEvent eElemDump $ \item -> do
+    let eDump = _eDump elem3
+    _ <- onEvent eDump $ \item -> do
         runFunction $ example ["openDirectory"] callback
 
     ------------------------------------------------------------------------------
@@ -1604,8 +1615,8 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback2 <- ffiExport fx2
-    let eElemDagsdato = filterJust $ rumors $ _dagsdatoPB elemDagsdato
-    _ <- onEvent eElemDagsdato $ \item -> do
+    let eDagsdato = _eDagsdato elem3
+    _ <- onEvent eDagsdato $ \item -> do
         runFunction $ example ["openDirectory"] callback2
 
     ------------------------------------------------------------------------------
@@ -1632,9 +1643,8 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback4 <- ffiExport fx4
-    let eElemDagsdatoBackup =
-            filterJust $ rumors $ _dagsdatoBackupPB elemDagsdatoBackup
-    _ <- onEvent eElemDagsdatoBackup $ \item -> do
+    let eDagsdatoBackup = _eDagsdatoBackup elem3
+    _ <- onEvent eDagsdatoBackup $ \item -> do
         runFunction $ example ["openDirectory"] callback4
 
     ------------------------------------------------------------------------------
@@ -1656,8 +1666,8 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteTabs item)
 
-    let eElemCameras = filterJust $ rumors $ _camerasPB elemCameras
-    _ <- onEvent eElemCameras $ \item -> do
+    let eCameras = _eCameras elem3
+    _ <- onEvent eCameras $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteCameras item)
 
