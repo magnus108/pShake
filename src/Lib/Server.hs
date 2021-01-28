@@ -4,19 +4,23 @@ module Lib.Server
     )
 where
 
-import qualified Lib.Client.Translation.Translation as Translation
-import Data.Char
-import Data.List
-import qualified System.FilePath as FP
-import System.Directory
+import qualified Lib.Client.Translation.Translation
+                                               as Translation
+import           Data.Char
+import           Data.List
+import qualified System.FilePath               as FP
+import           System.Directory
 import qualified Lib.Client.Main               as Main
-import qualified Lib.Client.Select.Select               as Select
-import qualified Lib.Client.Select.Dropdown               as Dropdown
-import qualified Lib.Client.DumpTab               as DumpTab
-import qualified Lib.Client.DagsdatoTab               as DagsdatoTab
-import qualified Lib.Client.DagsdatoBackupTab               as DagsdatoBackupTab
-import qualified Lib.Client.PhotographersTab               as PhotographersTab
-import qualified Lib.Client.CamerasTab               as CamerasTab 
+import qualified Lib.Client.Select.Select      as Select
+import qualified Lib.Client.Select.Dropdown    as Dropdown
+import qualified Lib.Client.DumpTab            as DumpTab
+import qualified Lib.Client.DagsdatoTab        as DagsdatoTab
+import qualified Lib.Client.DoneshootingTab        as DoneshootingTab
+import qualified Lib.Client.DagsdatoBackupTab  as DagsdatoBackupTab
+import qualified Lib.Client.PhotographersTab   as PhotographersTab
+import qualified Lib.Client.CamerasTab         as CamerasTab
+import qualified Lib.Client.ShootingsTab       as ShootingsTab
+import qualified Lib.Client.SessionsTab       as SessionsTab
 
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
@@ -79,10 +83,8 @@ import           Lib.App                        ( runApp
                                                 , MTabsFile(..)
                                                 , HShootings(..)
                                                 , MShootingsFile(..)
-
                                                 , HBuild(..)
                                                 , MBuildFile(..)
-
                                                 , HSessions(..)
                                                 , MSessionsFile(..)
                                                 , HLocationFile(..)
@@ -117,13 +119,13 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
-import qualified Lib.Server.Build               as ServerBuild
+import qualified Lib.Server.Build              as ServerBuild
 import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Doneshooting        as Doneshooting
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.DumpDir                as DumpDir
+import qualified Lib.Model.DumpDir             as DumpDir
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Session             as Session
@@ -192,10 +194,13 @@ entry bValue = do
     return PhotographerEntry { .. }
 
 setName :: Photographer.Photographers -> String -> Photographer.Photographers
-setName photographers name = case Lens.view Photographer.unPhotographers photographers of
-    ListZipper.ListZipper ls x rs ->
-        Photographer.Photographers
-            $ ListZipper.ListZipper ls (x & Photographer.name .~ name) rs
+setName photographers name =
+    case Lens.view Photographer.unPhotographers photographers of
+        ListZipper.ListZipper ls x rs ->
+            Photographer.Photographers $ ListZipper.ListZipper
+                ls
+                (x & Photographer.name .~ name)
+                rs
 
 -----------------------------------------------------------------------------
 data ShootingsBox a = ShootingsBox
@@ -1232,7 +1237,7 @@ dagsdatoBackupItem folderPicker = mkWriteAttr $ \i x -> void $ do
 
 mkFolderPicker4 :: DagsdatoBackup.DagsdatoBackup -> UI Element
 mkFolderPicker4 dagsdatoBackup = do
-    let name' =Lens.view DagsdatoBackup.unDagsdatoBackup dagsdatoBackup
+    let name' = Lens.view DagsdatoBackup.unDagsdatoBackup dagsdatoBackup
     UI.p # set text name'
 
 
@@ -1291,9 +1296,12 @@ data TabsBox a = TabsBox
     , _tabsPB :: Event Tab.Tabs
     , _eDump :: Event ()
     , _eDagsdato :: Event ()
+    , _eDoneshooting :: Event ()
     , _eDagsdatoBackup :: Event ()
     , _ePhotographers :: Event Photographer.Photographers
     , _eCameras :: Event Camera.Cameras
+    , _eShootings :: Event Shooting.Shootings
+    , _eSessions :: Event Session.Sessions
     }
 
 instance Widget (TabsBox a) where
@@ -1312,13 +1320,12 @@ tabsBox
     -> Behavior (Data.Data String Session.Sessions)
     -> Behavior (Data.Data String Location.Location)
     -> Behavior (Data.Data String Grade.Grades)
-    -> Behavior (Data.Data String DumpDir.DumpDir)
-    -> Behavior (Data.Data String Build.Build)
+    -> Behavior
+           (Data.Data String DumpDir.DumpDir)
+    -> Behavior
+           (Data.Data String Build.Build)
     -> UI
-           ( ShootingsBox c
-           , DoneshootingBox f
-           , SessionsBox g
-           , LocationBox h
+           ( LocationBox h
            , GradesBox i
            , GradeInputEntry
            , PhotographeesInputEntry
@@ -1328,20 +1335,32 @@ tabsBox
            )
 tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
     = mdo
-        _tabsE             <- UI.div
-        _ss                 <- UI.div
+        _tabsE     <- UI.div
+        _ss        <- UI.div
 
 
         switchMode <- UI.button # set text "skift"
         let eSwitchMode = UI.click switchMode
-        bMode <- stepper Translation.Normal $ Translation.toggle <$> bMode <@ eSwitchMode
-        bTranslations <- stepper (HashMap.fromList [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]) $ UI.never
+        bMode <-
+            stepper Translation.Normal
+            $   Translation.toggle
+            <$> bMode
+            <@  eSwitchMode
+        bTranslations <-
+            stepper
+                    (HashMap.fromList
+                        [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
+                    )
+                $ UI.never
 
 
-        let bDisplay = pure $ \b x -> do 
-                                trans <- Translation.translation bTranslations bMode (pure (show x))
-                                let button = UI.button #. "button" #+ [element trans]
-                                if b then button #. "button is-info is-selected" else button
+        let
+            bDisplay = pure $ \b x -> do
+                trans <- Translation.translation bTranslations
+                                                 bMode
+                                                 (pure (show x))
+                let button = UI.button #. "button" #+ [element trans]
+                if b then button #. "button is-info is-selected" else button
 
 
 
@@ -1352,15 +1371,20 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let eSelection = Select._selection selectors
 
-        photographers <- PhotographersTab.photographersTab bTranslations bMode bPhotographers
+        photographers <- PhotographersTab.photographersTab bTranslations
+                                                           bMode
+                                                           bPhotographers
 
-        elemShootings          <- listBoxShootings bShootings
-        elemDump               <- DumpTab.dumpTab bTranslations bMode bDump
-        elemDagsdato           <- DagsdatoTab.dagsdatoTab bTranslations bMode bDagsdato
+        shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings
+        elemDump           <- DumpTab.dumpTab bTranslations bMode bDump
+        elemDagsdato <- DagsdatoTab.dagsdatoTab bTranslations bMode bDagsdato
         cameras            <- CamerasTab.camerasTab bTranslations bMode bCameras
-        elemDoneshooting       <- listBoxDoneshooting bDoneshooting
-        elemDagsdatoBackup     <- DagsdatoBackupTab.dagsdatoBackupTab bTranslations bMode bDagsdatoBackup
-        elemSessions           <- listBoxSessions bSessions
+        doneshooting   <- DoneshootingTab.doneshootingTab bTranslations bMode bDoneshooting
+        elemDagsdatoBackup <- DagsdatoBackupTab.dagsdatoBackupTab
+            bTranslations
+            bMode
+            bDagsdatoBackup
+        sessions           <- SessionsTab.sessionsTab bTranslations bMode bSessions
         elemLocation           <- listBoxLocation bLocation
         elemGrades             <- listBoxGrades bGrades
         elemGradesInput        <- entryGradeInput bGrades
@@ -1374,15 +1398,14 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         element _ss
             # sink
-                  (tabItems
-                            photographers
-                            elemShootings
+                  (tabItems photographers
+                            shootings
                             elemDump
                             elemDagsdato
                             cameras
-                            elemDoneshooting
+                            doneshooting
                             elemDagsdatoBackup
-                            elemSessions
+                            sessions
                             elemLocation
                             elemGrades
                             elemGradesInput
@@ -1394,22 +1417,22 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                   bTabs
 
         menu <- element selectors #. "buttons has-addons"
-        element _tabsE # set children [ menu, _ss]
+        element _tabsE # set children [menu, _ss]
 
 
         let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection
-        let _eDump = DumpTab._selection elemDump
-        let _eDagsdato = DagsdatoTab._selection elemDagsdato
+        let _eDump           = DumpTab._selection elemDump
+        let _eDagsdato       = DagsdatoTab._selection elemDagsdato
         let _eDagsdatoBackup = DagsdatoBackupTab._selection elemDagsdatoBackup
-        let _ePhotographers = PhotographersTab._selection photographers
-        let _eCameras = CamerasTab._selection cameras
+        let _ePhotographers  = PhotographersTab._selection photographers
+        let _eCameras        = CamerasTab._selection cameras
+        let _eShootings = ShootingsTab._selection shootings
+        let _eSessions = SessionsTab._selection sessions
+        let _eDoneshooting = DoneshootingTab._selection doneshooting
 
 
         return
-            ( elemShootings
-            , elemDoneshooting
-            , elemSessions
-            , elemLocation
+            ( elemLocation
             , elemGrades
             , elemGradesInput
             , elemPhotograheesInput
@@ -1460,9 +1483,7 @@ tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBack
                             #+ [element mainTab]
 
                     Tab.ShootingsTab -> do
-                        return x
-                            #  set children []
-                            #+ [element shootings]
+                        return x # set children [] #+ [element shootings]
 
                     Tab.LocationTab -> do
                         return x
@@ -1473,39 +1494,25 @@ tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBack
                                ]
 
                     Tab.SessionsTab -> do
-                        return x
-                            #  set children []
-                            #+ [element sessions]
+                        return x # set children [] #+ [element sessions]
 
                     Tab.CamerasTab -> do
-                        return x
-                            #  set children []
-                            #+ [element cameras]
+                        return x # set children [] #+ [element cameras]
 
                     Tab.DumpTab -> do
-                        return x
-                            #  set children []
-                            #+ [element dump]
+                        return x # set children [] #+ [element dump]
 
                     Tab.DoneshootingTab -> do
-                        return x
-                            #  set children []
-                            #+ [element doneshooting]
+                        return x # set children [] #+ [element doneshooting]
 
                     Tab.DagsdatoTab -> do
-                        return x
-                            #  set children []
-                            #+ [element dagsdato]
+                        return x # set children [] #+ [element dagsdato]
 
                     Tab.DagsdatoBackupTab -> do
-                        return x
-                            #  set children []
-                            #+ [element dagsdatoBackup]
+                        return x # set children [] #+ [element dagsdatoBackup]
 
                     Tab.PhotographersTab -> do
-                        return x
-                            #  set children []
-                            #+ [element photographers]
+                        return x # set children [] #+ [element photographers]
 
                     Tab.InsertPhotographeeTab -> do
                         return x
@@ -1529,7 +1536,7 @@ setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
     _ <- return win # set title "FF"
 
-    (elemShootings, elemDoneshooting, elemSessions, elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
+    (elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
         tabsBox bTabs
                 bPhotographers
                 bShootings
@@ -1563,21 +1570,20 @@ setup env@Env {..} win = mdo
 
     let eBuild = Main._eBuild mainTab
     _ <- onEvent eBuild $ \item -> do
-        liftIO $ void $ Chan.writeChan (unInChan inChan)
-                                       (Message.RunBuild)
+        liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.RunBuild)
 
     let ePhotographers = _ePhotographers elem3
     _ <- onEvent ePhotographers $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WritePhographers item)
 
-    let eElemShootings = filterJust $ rumors $ _shootingsPB elemShootings
-    _ <- onEvent eElemShootings $ \item -> do
+    let eShootings = _eShootings elem3
+    _ <- onEvent eShootings $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteShootings item)
 
-    let eElemSessions = filterJust $ rumors $ _sessionsPB elemSessions
-    _ <- onEvent eElemSessions $ \item -> do
+    let eSessions = _eSessions elem3
+    _ <- onEvent eSessions $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteSessions item)
 
@@ -1627,9 +1633,9 @@ setup env@Env {..} win = mdo
             ) :: FilePath -> IO ()
 
     callback3 <- ffiExport fx3
-    let eElemDoneshooting =
-            filterJust $ rumors $ _doneshootingPB elemDoneshooting
-    _ <- onEvent eElemDoneshooting $ \item -> do
+    
+    let eDoneshooting = _eDoneshooting elem3
+    _ <- onEvent eDoneshooting $ \item -> do
         runFunction $ example ["openDirectory"] callback3
 
     ------------------------------------------------------------------------------
@@ -1775,12 +1781,12 @@ setupStartMap = do
     let watcher11     = Watchers.gradesFile
     let newStartMap11 = HashMap.insert key11 watcher11 newStartMap10
 
-    let key12          = "dumpDir"
-    let watcher12      = Watchers.dumpDir
+    let key12         = "dumpDir"
+    let watcher12     = Watchers.dumpDir
     let newStartMap12 = HashMap.insert key12 watcher12 newStartMap11
 
-    let key13          = "build"
-    let watcher13      = Watchers.buildFile
+    let key13         = "build"
+    let watcher13     = Watchers.buildFile
     let newStartMap13 = HashMap.insert key13 watcher13 newStartMap12
 
     putMVar mStartMap newStartMap13
@@ -2302,14 +2308,15 @@ receiveMessages window = do
                 _ <- putMVar mStopMap newStopMap
                 return ()
 
-            Message.ReadGrades -> do
-                { grades <- readGrades
-                ; hGrades <- unHGrades <$> grab @HGrades
-                ; liftIO $ hGrades $ Data.Data grades
-                } `E.catchError` (\e -> do
-                                    hGrades <- unHGrades <$> grab @HGrades
-                                    liftIO $ hGrades $ Data.Failure (show e)
-                                )
+            Message.ReadGrades ->
+                do
+                        grades  <- readGrades
+                        hGrades <- unHGrades <$> grab @HGrades
+                        liftIO $ hGrades $ Data.Data grades
+                    `E.catchError` (\e -> do
+                                       hGrades <- unHGrades <$> grab @HGrades
+                                       liftIO $ hGrades $ Data.Failure (show e)
+                                   )
 
 --------------------------------------------------------------------------------
             Message.StopDumpDir -> do
@@ -2339,10 +2346,13 @@ receiveMessages window = do
                 return ()
 
             Message.ReadDumpDir -> do
-                runIt12 window 
+                runIt12 window
                     `E.catchError` (\e -> do
-                                       hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
-                                       liftIO $ hConfigDumpDir $ Data.Failure (show e)
+                                       hConfigDumpDir <-
+                                           unHConfigDumpDir
+                                               <$> grab @HConfigDumpDir
+                                       liftIO $ hConfigDumpDir $ Data.Failure
+                                           (show e)
                                    )
 --------------------------------------------------------------------------------
             Message.StopBuild -> do
@@ -2351,9 +2361,9 @@ receiveMessages window = do
             Message.WriteBuild build -> do
                 mBuildFile <- unMBuildFile <$> grab @MBuildFile
                 buildFile  <- takeMVar mBuildFile
-                _           <- Build.writeBuild buildFile build
-                _           <- putMVar mBuildFile buildFile
-                _           <- liftIO $ runUI window $ do
+                _          <- Build.writeBuild buildFile build
+                _          <- putMVar mBuildFile buildFile
+                _          <- liftIO $ runUI window $ do
                     flushCallBuffer -- make sure that JavaScript functions are executed
                 return ()
 
@@ -2389,15 +2399,17 @@ receiveMessages window = do
                                    -}
 
             Message.RunBuild -> do
-                runBuild `E.catchError` (\e -> do
-                                        traceShowM e
-                                        traceShowM "wtf6"
-                                        )
+                runBuild
+                    `E.catchError` (\e -> do
+                                       traceShowM e
+                                       traceShowM "wtf6"
+                                   )
 
 --------------------------------------------------------------------------------
 
 runBuild :: forall  r m . WithChan r m => m ()
-runBuild = ServerBuild.runBuild
+runBuild =
+    ServerBuild.runBuild
         `catchIOError` (\e -> do
                            traceShowM e
                            if isUserError e
@@ -2644,10 +2656,9 @@ getLocation fp =
 
 
 
-runIt12
-    :: forall  r m . WithChan r m => Window -> m ()
+runIt12 :: forall  r m . WithChan r m => Window -> m ()
 runIt12 window = do
-    dumpDir <- readDumpDir
+    dumpDir        <- readDumpDir
     hConfigDumpDir <- unHConfigDumpDir <$> grab @HConfigDumpDir
     liftIO $ hConfigDumpDir $ Data.Data dumpDir
 
@@ -2656,7 +2667,7 @@ runIt12 window = do
 runIt13
     :: forall  r m . WithChan r m => Window -> FilePath -> MVar FilePath -> m ()
 runIt13 window buildFile mBuildFile = do
-    build <- getBuild buildFile
+    build  <- getBuild buildFile
     hBuild <- unHBuild <$> grab @HBuild
     liftIO $ hBuild $ Data.Data build
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
@@ -2665,10 +2676,7 @@ runIt13 window buildFile mBuildFile = do
 
 
 --type WithIOError m = MonadError AppError m
-getBuild
-    :: (MonadIO m, MonadCatch m, WithError m)
-    => FilePath
-    -> m Build.Build
+getBuild :: (MonadIO m, MonadCatch m, WithError m) => FilePath -> m Build.Build
 getBuild fp =
     readJSONFile fp
         `catchIOError` (\e -> do

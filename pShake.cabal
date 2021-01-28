@@ -33,12 +33,15 @@ library
       Lib.Client.CamerasTab
       Lib.Client.DagsdatoBackupTab
       Lib.Client.DagsdatoTab
+      Lib.Client.DoneshootingTab
       Lib.Client.DumpTab
       Lib.Client.Main
       Lib.Client.PhotographersTab
       Lib.Client.Picker.Picker
       Lib.Client.Select.Dropdown
       Lib.Client.Select.Select
+      Lib.Client.SessionsTab
+      Lib.Client.ShootingsTab
       Lib.Client.Text
       Lib.Client.Translation.Translation
       Lib.Config

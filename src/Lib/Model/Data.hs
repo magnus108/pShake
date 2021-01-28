@@ -13,6 +13,12 @@ data Data e s
         deriving Show
         deriving Functor
 
+instance Bifunctor Data where
+    bimap _ _ NotAsked = NotAsked
+    bimap _ _ Loading = Loading
+    bimap f _ (Failure e) = Failure (f e)
+    bimap _ g (Data s) = Data (g s)
+
 instance Monad (Data e) where
     return = Data
     (Data x)  >>= f = f x

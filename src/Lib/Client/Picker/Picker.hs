@@ -32,24 +32,31 @@ picker :: Behavior (Data.Data String FilePath) -> Behavior (FilePath -> UI Eleme
 picker bItem bDisplay bFallBack = mdo
     _container <- UI.div
 
-    _selector  <- UI.button #. "button"
+    _selector  <- UI.button
 
-    _ <- element _container # sink (items _selector) ((\x y -> (x,y)) <$> (fmap <$> bDisplay <*> bItem) <*> bFallBack)
+    let bDisplay' = bDisplay <&> \f filepath  -> do
+            icon <- UI.span #. "icon" #+ [UI.mkElement "i" #. "far fa-file"]
+            text <- f filepath
+            element _selector #. "button"
+                # set children [] #+ fmap element [text, icon]
+
+    let bFallback' = bFallBack <&> \text s -> do
+            element _selector #. "button"
+                # set children [] #+ [text]
+
+    _ <- element _container # sink items (bimap <$> bFallback' <*> bDisplay' <*> bItem)
 
     let _selection = UI.click _selector
 
     return Picker {..}
 
 
-items :: Element -> WriteAttr Element ((Data.Data String (UI Element)), UI Element)
-items picker = mkWriteAttr $ \(i, f) x -> void $ do
+items :: WriteAttr Element (Data.Data (UI Element) (UI Element))
+items = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
         Data.Loading   -> return x # set text "bobo"
         Data.Failure e -> do
-            err <- string (show e)
-            element picker # set children [] #+ [f]
-            return x # set children [] #+ [element err, element picker]
+            return x # set children [] #+ [e]
         Data.Data item -> do
-            element picker # set children [] #+ [item]
-            return x # set children [] #+ [element picker]
+            return x # set children [] #+ [item]
