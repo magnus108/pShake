@@ -35,7 +35,7 @@ instance Widget (Dropdown a) where
 dropdown
     :: (Show a, Eq a)
     => Behavior (Data.Data String (ListZipper.ListZipper a))
-    -> Behavior (a -> String)
+    -> Behavior (Bool -> a -> UI Element)
     -> UI (Dropdown a)
 dropdown bZipper bDisplay = mdo
 
@@ -47,8 +47,8 @@ dropdown bZipper bDisplay = mdo
     bState                         <- stepper False $ Unsafe.head <$> unions
         [fmap not (bState <@ _selection), fmap not (bState <@ _pop)]
 
-    let bDisplay' = bDisplay <&> \f h (zipper :: ListZipper.ListZipper a) -> do
-            display <- UI.button #. "button" # set text (f (extract zipper))
+    let bDisplay' = bDisplay <&> \f h b (zipper :: ListZipper.ListZipper a) -> do
+            display <- f b (extract zipper)
 
             UI.on UI.click display $ \_ -> do
                 liftIO $ h (Data.Data zipper)
@@ -59,8 +59,8 @@ dropdown bZipper bDisplay = mdo
             (\display'' state' zipper' -> fmap
                     (\item -> if state'
                         then ListZipper.toList
-                            (extend (display'' _handleSelection) item)
-                        else [display'' _handlePop item]
+                            (ListZipper.bextend (display'' _handleSelection) item)
+                        else [display'' _handlePop False item]
                     )
                     zipper'
                 )

@@ -1335,7 +1335,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let eSelection = Select._selection selectors
 
 
-        let bDisplay2 = pure $ \x -> x ^. Photographer.name
+        let bDisplay2 = pure $ \b x -> let button = UI.button #. "button" # set text (x ^. Photographer.name) in
+                                            if b then button #. "button is-info is-selected" else button
+
         photographers      <- Dropdown.dropdown (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers) bDisplay2
         let eSelection2 = Dropdown._selection photographers
 
