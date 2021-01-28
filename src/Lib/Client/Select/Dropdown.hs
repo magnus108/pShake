@@ -39,24 +39,29 @@ dropdown
     -> UI (Dropdown a)
 dropdown bZipper bDisplay = mdo
 
-    (_selection, _handle) <- liftIO $ newEvent
+    (_selection, _handleSelection) <- liftIO $ newEvent
+    (_pop      , _handlePop      ) <- liftIO $ newEvent
 
-    _container            <- UI.div #. "buttons has-addons"
+    _container                     <- UI.div #. "buttons has-addons"
 
-    bState                <- stepper False $ fmap not (bState <@ _selection)
+    bState                         <- stepper False $ Unsafe.head <$> unions
+        [fmap not (bState <@ _selection), fmap not (bState <@ _pop)]
 
-    let bDisplay' = bDisplay <&> \f (zipper :: ListZipper.ListZipper a) -> do
+    let bDisplay' = bDisplay <&> \f h (zipper :: ListZipper.ListZipper a) -> do
             display <- UI.button #. "button" # set text (f (extract zipper))
 
             UI.on UI.click display $ \_ -> do
-                liftIO $ _handle (Data.Data zipper)
+                liftIO $ h (Data.Data zipper)
 
             return $ display
 
-    let
-        view =
+    let view =
             (\display'' state' zipper' -> fmap
-                    (\item -> if state' then ListZipper.toList (extend display'' item) else [display'' item])
+                    (\item -> if state'
+                        then ListZipper.toList
+                            (extend (display'' _handleSelection) item)
+                        else [display'' _handlePop item]
+                    )
                     zipper'
                 )
                 <$> bDisplay'
