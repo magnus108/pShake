@@ -5,6 +5,8 @@ module Lib.Client.Picker.Picker
     )
 where
 
+import qualified Lib.Client.Translation.Translation as Translation
+import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Model.Data                as Data
 import           Control.Lens                   ( (^.)
                                                 , (.~)
@@ -28,8 +30,8 @@ instance Widget Picker where
     getElement = _container
 
 
-picker :: Behavior (Data.Data String FilePath) -> Behavior (FilePath -> UI Element) -> Behavior (UI Element) -> UI Picker
-picker bItem bDisplay bFallBack = mdo
+picker :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String FilePath) -> Behavior (FilePath -> UI Element) -> Behavior (String -> UI Element) -> UI Picker
+picker bTranslations bMode bItem bDisplay bFallBack = mdo
     _container <- UI.div
 
     _selector  <- UI.button
@@ -38,11 +40,12 @@ picker bItem bDisplay bFallBack = mdo
             icon <- UI.span #. "icon" #+ [UI.mkElement "i" #. "far fa-file"]
             text <- f filepath
             element _selector #. "button"
-                # set children [] #+ fmap element [text, icon]
+                # set children [text, icon]
 
-    let bFallback' = bFallBack <&> \text s -> do
+    let bFallback' = bFallBack <&> \f s -> do
+            text <- f s
             element _selector #. "button"
-                # set children [] #+ [text]
+                # set children [text]
 
     _ <- element _container # sink items (bimap <$> bFallback' <*> bDisplay' <*> bItem)
 

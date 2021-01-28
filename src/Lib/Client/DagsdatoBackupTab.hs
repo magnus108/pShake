@@ -48,7 +48,7 @@ dagsdatoBackupTab bTranslations bMode bDagsdatoBackup = mdo
 
     let display = pure $ \x -> UI.string x
     let filepath = fmap (Lens.view DagsdatoBackup.unDagsdatoBackup ) <$> bDagsdatoBackup
-    picker <- Picker.picker filepath display (pure (element fallback))
+    picker <- Picker.picker bTranslations bMode filepath display (pure $ \_ -> (element fallback))
 
     _container <- UI.div #+ [element picker]
     let _selection = Picker._selection picker
