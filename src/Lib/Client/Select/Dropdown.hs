@@ -4,20 +4,18 @@ module Lib.Client.Select.Dropdown
     , dropdown
     )
 where
-
-import qualified Lib.Client.Select.Select               as Select
+import qualified Lib.Client.Select.Select      as Select
 import qualified Lib.Model.Data                as Data
-import Prelude hiding (get)
-import qualified Relude.Unsafe as Unsafe
-import Utils.Comonad
+import           Prelude                 hiding ( get )
+import qualified Relude.Unsafe                 as Unsafe
+import           Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
-import qualified Relude.Unsafe as Unsafe
+import qualified Relude.Unsafe                 as Unsafe
 import           Control.Lens                   ( (^.)
                                                 , (.~)
                                                 , over
                                                 , (%~)
                                                 , lens
-                                                , view
                                                 )
 
 import qualified Reactive.Threepenny           as Reactive
@@ -34,70 +32,44 @@ instance Widget (Dropdown a) where
     getElement = _container
 
 
-data Mode
-    = Closed
-    | Open
+dropdown
+    :: (Show a, Eq a)
+    => Behavior (Data.Data String (ListZipper.ListZipper a))
+    -> Behavior (a -> String)
+    -> UI (Dropdown a)
+dropdown bZipper bDisplay = mdo
 
-test :: UI (Dropdown String)
-test = mdo
+    (_selection, _handle) <- liftIO $ newEvent
 
-    let display = pure (\x -> show x)
+    _container            <- UI.div #. "buttons has-addons"
 
-    dropdown' <- dropdown content display
+    bState                <- stepper False $ fmap not (bState <@ _selection)
 
-    let eStateChange = _selection dropdown'
+    let bDisplay' = bDisplay <&> \f (zipper :: ListZipper.ListZipper a) -> do
+            display <- UI.button #. "button" # set text (f (extract zipper))
 
-    content <- stepper (Data.Data (ListZipper.ListZipper [] "a" ["a","b"])) eStateChange
+            UI.on UI.click display $ \_ -> do
+                liftIO $ _handle (Data.Data zipper)
 
-    return dropdown'
+            return $ display
 
+    let
+        view =
+            (\display'' state' zipper' -> fmap
+                    (\item -> if state' then ListZipper.toList (extend display'' item) else [display'' item])
+                    zipper'
+                )
+                <$> bDisplay'
+                <*> bState
+                <*> bZipper
 
-
-dropdown :: (Show a, Eq a) => Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (a -> String) -> UI (Dropdown a)
-dropdown bZipper bDisplay = do
-
-    _container <- UI.div
-
-    _open <- UI.button #. "button"
-    _close <- UI.button #. "button" # set text "close"
-
-    state <- stepper Closed $ Unsafe.head <$>
-        unions [ Closed <$ UI.click _close
-               , Open <$ UI.click _open
-               ]
-
-
------------------
-    let bDisplay2 = bDisplay <&> \f b x -> let button = UI.button #. "button" # set text (f x) in
-                                        if b then button #. "button is-info is-selected" else button
-
-    selectors <- Select.select bZipper bDisplay2
-
-    let eSelection = Select._selection selectors
-    eh2 <- element selectors
-    eh <- UI.div # set children [ eh2, _close]
------------------
-
-    -- is this dangerous?
-    let bDisplay' = bDisplay <&> \f state' (zipper :: ListZipper.ListZipper a) -> do
-                                    case state' of
-                                            Open -> do
-                                                element eh
-                                            Closed -> do
-                                                let focus = extract zipper
-                                                let display = f focus
-                                                element _open # set text display
-
-    let view = (\d s z -> fmap (d s) z) <$> bDisplay' <*> state <*> bZipper
 
     _ <- element _container # sink items view
-
-    let _selection = eSelection
 
     return Dropdown { .. }
 
 
-items :: WriteAttr Element (Data.Data String (UI Element))
+items :: WriteAttr Element (Data.Data String [UI Element])
 items = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
@@ -106,4 +78,5 @@ items = mkWriteAttr $ \i x -> void $ do
             err <- string (show e)
             return x # set children [] #+ [element err]
         Data.Data item -> do
-            return x # set children [] #+ [item]
+            return x # set children [] #+ item
+
