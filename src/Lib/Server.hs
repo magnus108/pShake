@@ -4,6 +4,7 @@ module Lib.Server
     )
 where
 
+import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
                                                as Translation
 import           Data.Char
@@ -1339,13 +1340,16 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         _ss        <- UI.div
 
 
-        switchMode <- UI.button # set text "skift"
+        switchMode <- UI.button #. "button" # set text "skift"
+
         let eSwitchMode = UI.click switchMode
+
         bMode <-
             stepper Translation.Normal
             $   Translation.toggle
             <$> bMode
             <@  eSwitchMode
+
         bTranslations <-
             stepper
                     (HashMap.fromList
@@ -1359,9 +1363,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                 trans <- Translation.translation bTranslations
                                                  bMode
                                                  (pure (show x))
-                let button = UI.button #. "button" #+ [element trans]
-                if b then button #. "button is-info is-selected" else button
-
+                element trans
 
 
 
@@ -1369,8 +1371,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
         fallback <- Translation.translation bTranslations bMode (pure "pick")
-        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> (element fallback))
 
+        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> (element fallback))
+    
         let eSelection = Select._selection selectors
 
         photographers <- PhotographersTab.photographersTab bTranslations
@@ -1419,7 +1422,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                   bTabs
 
         menu <- element selectors #. "buttons has-addons"
-        element _tabsE # set children [menu, _ss]
+        element _tabsE # set children [menu, _ss, switchMode]
 
 
         let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection

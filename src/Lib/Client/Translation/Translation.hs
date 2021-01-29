@@ -32,6 +32,7 @@ data Mode
     = Translating
     | Searching
     | Normal
+    deriving (Eq, Show)
 
 
 type Translations = HashMap String String
@@ -62,9 +63,9 @@ translation bTranslations bMode bKey = mdo
     _container <- UI.div
 
     _text <- UI.span # sink text bValue
-    _buttonOpen <- UI.button # sink text ( (\s -> "{{"++s++"}}") <$> bKey)
+    _buttonOpen <- UI.button #. "button" # sink text ( (\s -> "{{"++s++"}}") <$> bKey)
 
-    _buttonClose <- UI.button # set text "close"
+    _buttonClose <- UI.button #. "button" # set text "close"
 
 
     let bToTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations

@@ -5,14 +5,16 @@ module Lib.Client.Select.Select
     )
 where
 
-import qualified Lib.Client.Translation.Translation as Translation
+import Control.Conditional ((?<>))
+import qualified Lib.Client.Translation.Translation
+                                               as Translation
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Model.Data                as Data
-import Prelude hiding (get)
-import qualified Relude.Unsafe as Unsafe
-import Utils.Comonad
+import           Prelude                 hiding ( get )
+import qualified Relude.Unsafe                 as Unsafe
+import           Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
-import qualified Relude.Unsafe as Unsafe
+import qualified Relude.Unsafe                 as Unsafe
 import           Control.Lens                   ( (^.)
                                                 , (.~)
                                                 , over
@@ -35,34 +37,51 @@ instance Widget (Select a) where
     getElement = _container
 
 
-select :: (Show a, Eq a) => Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (Bool -> a -> UI Element) -> Behavior (String -> UI Element) -> UI (Select a)
+select
+    :: (Show a, Eq a)
+    => Behavior Translation.Translations
+    -> Behavior Translation.Mode
+    -> Behavior (Data.Data String (ListZipper.ListZipper a))
+    -> Behavior (Bool -> a -> UI Element)
+    -> Behavior (String -> UI Element)
+    -> UI (Select a)
 select bTranslations bMode bZipper bDisplay bFallback = mdo
     (_selection, _handle) <- liftIO $ newEvent
 
-    _container <- UI.div
-    _children <- UI.div
+    _container            <- UI.div
+    _children             <- UI.div
 
     -- is this dangerous?
-    let bDisplay' = bDisplay <&> (\f b (zipper :: ListZipper.ListZipper a) -> do
-                                    display <- f b (extract zipper)
+    let bDisplay' =
+            (\f m z -> do
+                    c <- sequence $ ListZipper.toList $ ListZipper.bextend (f m) z
+                    element _children # set children c
+                )
+                <$> (\f m b (zipper :: ListZipper.ListZipper a) -> do
+                        trans <- f b (extract zipper)
+                        display <- UI.button #. (b ?<> "is-info is-seleceted" <> " " <> "button") #+ [element trans]
 
-                                    UI.on UI.click display $ \_ -> do
-                                        liftIO $ _handle (Data.Data zipper)
+                        UI.on UI.click display $ \_ -> do
+                            liftIO $ _handle (Data.Data zipper)
 
-                                    return $ display)
-                                <&> (\f z -> do
-                                    c <- sequence $ ListZipper.toList $ ListZipper.bextend f z
-                                    element _children # set children c
-                                )
+                        return $  if m /= Translation.Normal then trans else display
+                    )
+                <$> bDisplay <*> bMode
 
     notAsked <- Translation.translation bTranslations bMode (pure "notAsked")
-    loading <- Translation.translation bTranslations bMode (pure "loading")
+    loading  <- Translation.translation bTranslations bMode (pure "loading")
 
-    _ <- element _container # sink items (Data.data' (element notAsked) (element loading) <$> bFallback <*> bDisplay' <*> bZipper)
+    _        <- element _container # sink
+        items
+        (   Data.data' (element notAsked) (element loading)
+        <$> bFallback
+        <*> bDisplay'
+        <*> bZipper
+        )
 
     return Select { .. }
 
 
 items :: WriteAttr Element (UI Element)
 items = mkWriteAttr $ \i x -> void $ do
-        return x # set children [] #+ [i]
+    return x # set children [] #+ [i]
