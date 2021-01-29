@@ -5,10 +5,12 @@ module Lib.Client.Translation.Translation
     , translation
     , Translations
     , toggle
+
+    , translation2
     )
 where
 
-import Lib.Client.Text
+import Lib.Client.Input.Text
 
 import qualified Relude.Unsafe as Unsafe
 import           Control.Lens                   ( (^.)
@@ -55,24 +57,53 @@ instance Widget Translation where
     getElement = _container
 
 
+translation2 :: Translations -> Mode -> Bool -> String -> UI Element
+translation2 translations mode toggle key = mdo
+    let value = HashMap.lookupDefault key key translations
+
+    _text <- UI.span # set text value
+    _buttonOpen <- UI.button #. "button" # set text ( (\s -> "{{"++s++"}}") key)
+    _buttonClose <- UI.button #. "button" # set text "close"
+
+    let toTranslate = HashMap.lookupDefault "" key translations
+    _translationInput <- entry (pure toTranslate)
+    let _translation = userText _translationInput
+    _popup <- UI.div #+
+        [ element _translationInput
+        , element _buttonClose
+        ]
+
+    let eOpenPopup = UI.click _buttonOpen
+    let eClosePopup = UI.click _buttonClose
+
+    if toggle then
+        return _popup
+    else
+        case mode of
+            Searching -> return _popup
+            Normal -> return _text
+            Translating -> return _popup
+
+
+
 translation :: Behavior Translations -> Behavior Mode -> Behavior String -> UI Translation
 translation bTranslations bMode bKey = mdo
 
-    let bValue = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
-
     _container <- UI.div
 
+    let bValue = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
     _text <- UI.span # sink text bValue
-    _buttonOpen <- UI.button #. "button" # sink text ( (\s -> "{{"++s++"}}") <$> bKey)
 
+    _buttonOpen <- UI.button #. "button" # sink text ( (\s -> "{{"++s++"}}") <$> bKey)
     _buttonClose <- UI.button #. "button" # set text "close"
 
 
     let bToTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
     _translationInput <- entry bToTranslate
 
-    let _translation = userText _translationInput
 
+
+    let _translation = userText _translationInput
     _popup <- UI.div #+
         [ element _translationInput
         , element _buttonClose

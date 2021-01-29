@@ -6,7 +6,7 @@ module Lib.Client.Main
 where
 
 import qualified Data.HashMap.Strict           as HashMap
-import Lib.Client.Text
+import Lib.Client.Input.Text
 import Data.Char
 
 import           Control.Lens                   ( (^.)

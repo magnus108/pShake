@@ -35,6 +35,7 @@ library
       Lib.Client.DagsdatoTab
       Lib.Client.DoneshootingTab
       Lib.Client.DumpTab
+      Lib.Client.Input.Text
       Lib.Client.Main
       Lib.Client.PhotographersTab
       Lib.Client.Picker.Picker
@@ -42,7 +43,6 @@ library
       Lib.Client.Select.Select
       Lib.Client.SessionsTab
       Lib.Client.ShootingsTab
-      Lib.Client.Text
       Lib.Client.Translation.Translation
       Lib.Config
       Lib.Message

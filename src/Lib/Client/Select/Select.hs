@@ -42,29 +42,27 @@ select
     => Behavior Translation.Translations
     -> Behavior Translation.Mode
     -> Behavior (Data.Data String (ListZipper.ListZipper a))
-    -> Behavior (Bool -> a -> UI Element)
+    -> Behavior (a -> UI Element)
     -> Behavior (String -> UI Element)
     -> UI (Select a)
 select bTranslations bMode bZipper bDisplay bFallback = mdo
     (_selection, _handle) <- liftIO $ newEvent
-
-    _container            <- UI.div
-    _children             <- UI.div
+    _container             <- UI.div #. "buttons has-addons"
 
     -- is this dangerous?
     let bDisplay' =
             (\f m z -> do
                     c <- sequence $ ListZipper.toList $ ListZipper.bextend (f m) z
-                    element _children # set children c
+                    element _container # set children c
                 )
                 <$> (\f m b (zipper :: ListZipper.ListZipper a) -> do
-                        trans <- f b (extract zipper)
-                        display <- UI.button #. (b ?<> "is-info is-seleceted" <> " " <> "button") #+ [element trans]
+                        trans <- f (extract zipper)
+                        display <- UI.button #. (b ?<> "is-info is-seleceted" <> " " <> "button") # set children [trans]
 
                         UI.on UI.click display $ \_ -> do
                             liftIO $ _handle (Data.Data zipper)
 
-                        return $  if m /= Translation.Normal then trans else display
+                        return $ if m /= Translation.Normal then trans else display
                     )
                 <$> bDisplay <*> bMode
 

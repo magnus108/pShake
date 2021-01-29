@@ -1358,12 +1358,16 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                 $ UI.never
 
 
+
+        bToggle <- stepper False UI.never
+        {---$ Unsafe.head <$> unions
+            [ (not <$> bToggle) <@ eOpenPopup
+            , (not <$> bToggle) <@ eClosePopup
+            ]
+            -}
+
         let
-            bDisplay = pure $ \b x -> do
-                trans <- Translation.translation bTranslations
-                                                 bMode
-                                                 (pure (show x))
-                element trans
+            bDisplay = (\t m b x -> Translation.translation2 t m b (show x)) <$> bTranslations <*> bMode <*> bToggle
 
 
 
@@ -1421,7 +1425,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
                   bTabs
 
-        menu <- element selectors #. "buttons has-addons"
+        menu <- element selectors
         element _tabsE # set children [menu, _ss, switchMode]
 
 

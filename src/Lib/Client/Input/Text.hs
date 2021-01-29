@@ -1,5 +1,5 @@
 {-# LANGUAGE RecursiveDo #-}
-module Lib.Client.Text
+module Lib.Client.Input.Text
     ( entry
     , userText
     , TextEntry(..)
@@ -44,7 +44,7 @@ userText = _userTE
 
 entry :: Behavior String -> UI TextEntry
 entry bValue = do
-    input    <- UI.input -- # set text value'
+    input    <- UI.input #. "input"
 
 
     bEditing <- stepper False $ and <$> unions
