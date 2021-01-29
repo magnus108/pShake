@@ -5,6 +5,8 @@ module Lib.Client.Select.Select
     )
 where
 
+import qualified Lib.Client.Translation.Translation as Translation
+import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Model.Data                as Data
 import Prelude hiding (get)
 import qualified Relude.Unsafe as Unsafe
@@ -33,35 +35,34 @@ instance Widget (Select a) where
     getElement = _container
 
 
-select :: (Show a, Eq a) => Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (Bool -> a -> UI Element) -> UI (Select a)
-select bZipper bDisplay = do
+select :: (Show a, Eq a) => Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String (ListZipper.ListZipper a)) -> Behavior (Bool -> a -> UI Element) -> Behavior (String -> UI Element) -> UI (Select a)
+select bTranslations bMode bZipper bDisplay bFallback = mdo
     (_selection, _handle) <- liftIO $ newEvent
 
     _container <- UI.div
+    _children <- UI.div
 
     -- is this dangerous?
-    let bDisplay' = bDisplay <&> \f b (zipper :: ListZipper.ListZipper a) -> do
+    let bDisplay' = bDisplay <&> (\f b (zipper :: ListZipper.ListZipper a) -> do
                                     display <- f b (extract zipper)
 
                                     UI.on UI.click display $ \_ -> do
                                         liftIO $ _handle (Data.Data zipper)
 
-                                    return $ display
+                                    return $ display)
+                                <&> (\f z -> do
+                                    c <- sequence $ ListZipper.toList $ ListZipper.bextend f z
+                                    element _children # set children c
+                                )
 
-    let bButtons = (\d z -> fmap (ListZipper.bextend d) z) <$> bDisplay' <*> bZipper
+    notAsked <- Translation.translation bTranslations bMode (pure "notAsked")
+    loading <- Translation.translation bTranslations bMode (pure "loading")
 
-    _ <- element _container # sink items bButtons
+    _ <- element _container # sink items (Data.data' (element notAsked) (element loading) <$> bFallback <*> bDisplay' <*> bZipper)
 
     return Select { .. }
 
 
-items :: WriteAttr Element (Data.Data String (ListZipper.ListZipper (UI Element)))
+items :: WriteAttr Element (UI Element)
 items = mkWriteAttr $ \i x -> void $ do
-    case i of
-        Data.NotAsked  -> return x # set text "Not Asked"
-        Data.Loading   -> return x # set text "bobo"
-        Data.Failure e -> do
-            err <- string (show e)
-            return x # set children [] #+ [element err]
-        Data.Data item -> do
-            return x # set children [] #+ (ListZipper.toList item)
+        return x # set children [] #+ [i]

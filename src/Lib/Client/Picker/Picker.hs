@@ -47,19 +47,16 @@ picker bTranslations bMode bItem bDisplay bFallBack = mdo
             element _selector #. "button"
                 # set children [text]
 
-    _ <- element _container # sink items (bimap <$> bFallback' <*> bDisplay' <*> bItem)
+    notAsked <- Translation.translation bTranslations bMode (pure "notAsked")
+    loading <- Translation.translation bTranslations bMode (pure "loading")
+
+    _ <- element _container # sink items (Data.data' (element notAsked) (element loading) <$> bFallback' <*> bDisplay' <*> bItem)
 
     let _selection = UI.click _selector
 
     return Picker {..}
 
 
-items :: WriteAttr Element (Data.Data (UI Element) (UI Element))
+items :: WriteAttr Element (UI Element)
 items = mkWriteAttr $ \i x -> void $ do
-    case i of
-        Data.NotAsked  -> return x # set text "Not Asked"
-        Data.Loading   -> return x # set text "bobo"
-        Data.Failure e -> do
-            return x # set children [] #+ [e]
-        Data.Data item -> do
-            return x # set children [] #+ [item]
+        return x # set children [] #+ [i]

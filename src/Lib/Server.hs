@@ -1367,7 +1367,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
 
-        selectors <- Select.select bZipper bDisplay
+
+        fallback <- Translation.translation bTranslations bMode (pure "pick")
+        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> (element fallback))
 
         let eSelection = Select._selection selectors
 
