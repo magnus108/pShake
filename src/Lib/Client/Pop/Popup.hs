@@ -5,6 +5,7 @@ module Lib.Client.Pop.Popup
     , Mode(..)
     , popup3
     , popup4
+    , popup5
     )
 where
 
@@ -106,3 +107,21 @@ popup3 bf bg = mdo
     return $ (\m f g -> case m of
             Closed -> f _buttonClose
             Open -> g _buttonOpen ) <$> bMode <*> bf <*> bg
+
+popup5 :: UI ((Element,Element), Tidings Mode)
+popup5 = mdo
+    _buttonOpen <- UI.button #. "button" # set text "open5"
+    _buttonClose <- UI.button #. "button" # set text "close5"
+
+    let _eOpen = bMode <@ UI.click _buttonOpen
+    let _eClose = bMode <@ UI.click _buttonClose
+
+    let _e = Unsafe.head <$> unions
+            [ _eClose
+            , _eOpen
+            ]
+
+    bMode <- stepper Closed $ switch <$> _e
+
+    return ((_buttonClose, _buttonOpen), tidings bMode _e)
+

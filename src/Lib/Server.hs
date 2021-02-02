@@ -1341,34 +1341,31 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         _ss        <- UI.div
 
 
+
         switchMode <- UI.button #. "button" # set text "skift"
-
         let eSwitchMode = UI.click switchMode
-
         bMode <-
             stepper Translation.Normal
             $   Translation.toggle
             <$> bMode
             <@  eSwitchMode
 
+
+
         bTranslations <-
             stepper
                     (HashMap.fromList
                         [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
                     )
-                $ UI.never
+                $ UI.never -- Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
 
-
-
-        bToggle <- stepper False UI.never
-        {---$ Unsafe.head <$> unions
-            [ (not <$> bToggle) <@ eOpenPopup
-            , (not <$> bToggle) <@ eClosePopup
-            ]
-            -}
 
         let
-            bDisplay = (\t m b x -> Translation.translation2 t m b (show x)) <$> bTranslations <*> bMode <*> bToggle
+            bDisplay = pure $ \x -> do
+                        trans <- Translation.translation bTranslations
+                                                        bMode
+                                                        (pure (show x))
+                        element trans
 
 
 
@@ -1380,6 +1377,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> (element fallback))
     
         let eSelection = Select._selection selectors
+
 
         photographers <- PhotographersTab.photographersTab bTranslations
                                                            bMode
@@ -1411,9 +1409,20 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
 
+    {-
         bpop3 <- Popup.popup3 (pure $ \x -> return x) (pure $ \x -> return x)
         lol <- Popup.popup4 
         let bpop4 = either (\x -> return x) (\x -> return x) <$> lol
+        -}
+
+        ((e1,e2), t3) <- Popup.popup5
+        
+        let myB = (\b -> case b of
+                            Popup.Closed -> return e1
+                            Popup.Open -> return e2
+                    ) <$> t3
+
+
 
         element _ss
             # sink
@@ -1432,7 +1441,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemPhotograheesInput2
                             elemMainTab
                   )
-                  ((\x y -> (x,y)) <$> bTabs <*> bpop4)
+                  ((\x y -> (x,y)) <$> bTabs <*> (facts myB))
 
 
 

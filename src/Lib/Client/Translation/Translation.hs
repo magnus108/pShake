@@ -57,6 +57,42 @@ instance Widget Translation where
     getElement = _container
 
 
+
+    {-
+type DataItem = (String, String)
+showDataItem (firstname, lastname) = lastname ++ ", " ++ firstname
+
+-- | Data item widget, consisting of two text entries
+dataItem
+    :: Behavior (Maybe DataItem)
+    -> UI ((Element, Element), Tidings DataItem)
+dataItem bItem = do
+    entry1 <- UI.entry $ fst . maybe ("","") id <$> bItem
+    entry2 <- UI.entry $ snd . maybe ("","") id <$> bItem
+    
+    return ( (getElement entry1, getElement entry2)
+           , (,) <$> UI.userText entry1 <*> UI.userText entry2
+           )
+translation3 :: UI (Behavior (Either Element Element))
+translation3 = mdo
+    _buttonOpen <- UI.button #. "button" # set text "open3"
+    _buttonClose <- UI.button #. "button" # set text "close3"
+
+    let _eOpen = bMode <@ UI.click _buttonOpen
+    let _eClose = bMode <@ UI.click _buttonClose
+
+    let _e = Unsafe.head <$> unions
+            [ _eClose
+            , _eOpen
+            ]
+
+    bMode <- stepper Closed $ switch <$> _e
+
+    return $ (\m -> case m of
+            Closed -> Left _buttonClose
+            Open -> Right _buttonOpen ) <$> bMode
+            -}
+
 translation2 :: Translations -> Mode -> Bool -> String -> UI Element
 translation2 translations mode toggle key = mdo
     let value = HashMap.lookupDefault key key translations
