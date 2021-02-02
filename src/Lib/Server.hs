@@ -4,6 +4,7 @@ module Lib.Server
     )
 where
 
+import qualified Lib.Client.Pop.Popup as Popup
 import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
                                                as Translation
@@ -1405,6 +1406,15 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         elemMainTab <- Main.mainTab bGrades bDumpDir bBuild
 
+
+        pop <- Popup.popup (pure $ \x -> return x) (pure $ \x -> return x)
+
+
+
+        bpop3 <- Popup.popup3 (pure $ \x -> return x) (pure $ \x -> return x)
+        lol <- Popup.popup4 
+        let bpop4 = either (\x -> return x) (\x -> return x) <$> lol
+
         element _ss
             # sink
                   (tabItems photographers
@@ -1422,8 +1432,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemPhotograheesInput2
                             elemMainTab
                   )
+                  ((\x y -> (x,y)) <$> bTabs <*> bpop4)
 
-                  bTabs
+
 
         menu <- element selectors
         element _tabsE # set children [menu, _ss, switchMode]
@@ -1477,7 +1488,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
 
 
 tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
-    = mkWriteAttr $ \i x -> void $ do
+    = mkWriteAttr $ \(i,a) x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
             Data.Loading   -> return x # set text "bobo"
@@ -1489,7 +1500,7 @@ tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBack
                     Tab.MainTab -> do
                         return x
                             #  set children [] -- THIS IS DANGEROUS?
-                            #+ [element mainTab]
+                            #+ [element mainTab, a]
 
                     Tab.ShootingsTab -> do
                         return x # set children [] #+ [element shootings]

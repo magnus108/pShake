@@ -39,6 +39,7 @@ library
       Lib.Client.Main
       Lib.Client.PhotographersTab
       Lib.Client.Picker.Picker
+      Lib.Client.Pop.Popup
       Lib.Client.Select.Dropdown
       Lib.Client.Select.Select
       Lib.Client.SessionsTab
