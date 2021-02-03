@@ -6,7 +6,7 @@ module Lib.Client.PhotographersTab
 where
 import Control.Conditional ((?<>))
 import qualified Lib.Model.Photographer        as Photographer
-import qualified Lib.Client.Select.Dropdown    as Dropdown
+import qualified Lib.Client.Select.Dropdown2 as Dropdown
 import qualified Lib.Client.Translation.Translation
                                                as Translation
 import qualified Data.HashMap.Strict           as HashMap
@@ -37,6 +37,10 @@ instance Widget PhotographersTab where
     getElement = _container
 
 
+item :: WriteAttr Element Element
+item = mkWriteAttr $ \i x -> void $ do
+    return x # set children [i]
+
 photographersTab
     :: Behavior Translation.Translations
     -> Behavior Translation.Mode
@@ -44,8 +48,11 @@ photographersTab
     -> UI PhotographersTab
 photographersTab bTranslations bMode bPhotographers = mdo
 
-    let
-        bDisplay = pure $ \s b x -> do
+    ((closed, open), tBool, eSelection) <- Dropdown.dropdown bTranslations bMode bZipper bDisplay
+
+    let bZipper = (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers)
+
+    let bDisplay = pure $ \s b x -> do
             text <- UI.span # set text (x ^. Photographer.name)
             icon <-
                 UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
@@ -53,15 +60,13 @@ photographersTab bTranslations bMode bPhotographers = mdo
                 #. (b ?<> "is-info is-seleceted" <> " " <> "button")
                 #+ fmap element ([text] <> not s ?<> [icon])
 
-    photographers <- Dropdown.dropdown
-        (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers)
-        bDisplay
 
     let _selection =
             filterJust
                 $   Data.toJust
                 <$> fmap Photographer.Photographers
-                <$> (Dropdown._selection photographers)
-    _container <- element photographers
+                <$> eSelection
+
+    _container <- UI.div # sink item ((\b -> if b then open else closed) <$> facts tBool)
 
     return PhotographersTab { .. }
