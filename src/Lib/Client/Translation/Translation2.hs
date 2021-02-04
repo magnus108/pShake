@@ -44,7 +44,7 @@ translation
     :: Tidings Translations
     -> Tidings Mode
     -> Behavior String
-    -> UI ((Element, Element, Element), Tidings Element)
+    -> UI ((Element, Element, Element), Tidings Element, Tidings String)
 translation tTranslations tMode bKey = mdo
 
     let bTranslations = facts tTranslations
@@ -70,4 +70,4 @@ translation tTranslations tMode bKey = mdo
                 <$> tPopup
                 <*> tMode
 
-    return ((_text, _open, _popup), tToggle)
+    return ((_text, _open, _popup), tToggle, _translation)

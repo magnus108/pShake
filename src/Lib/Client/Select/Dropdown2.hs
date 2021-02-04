@@ -25,16 +25,6 @@ import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
 
-item :: WriteAttr Element Element
-item = mkWriteAttr $ \i x -> void $ do
-    return x # set children [i]
-
-
-items :: WriteAttr Element [UI Element]
-items = mkWriteAttr $ \i x -> void $ do
-    return x # set children [] #+ i
-
-
 dropdown
     :: (Show a, Eq a)
     => Tidings Translation.Translations
@@ -43,14 +33,6 @@ dropdown
     -> Behavior (Bool -> Bool -> a -> UI Element)
     -> UI ((Element, Element), Tidings Bool, Event (Data.Data String (ListZipper.ListZipper a)))
 dropdown tTranslations tMode bZipper bDisplay = mdo
-
-    (_, tNotAsked) <- Translation.translation tTranslations tMode (pure "notAsked")
-    (_, tLoading) <- Translation.translation tTranslations tMode (pure "loading")
-    (_, tError) <- Translation.translation tTranslations tMode (pure "error")
-
-    _loading <- UI.div # sink item (facts tLoading)
-    _notAsked <- UI.div # sink item (facts tNotAsked)
-    _error <- UI.div # sink item (facts tError)
 
     (_selection, _handleSelection) <- liftIO $ newEvent
     (_popup , _handlePopup      ) <- liftIO $ newEvent
@@ -67,17 +49,36 @@ dropdown tTranslations tMode bZipper bDisplay = mdo
 
             return $ display
 
-
-    _closed                     <- UI.div
-    let ggg = flip fmap <$> bZipper <*> ((\display state -> display _handlePopup state False) <$> bDisplay' <*> bState)
-    window <- askWindow
-    liftIOLater $ Reactive.onChange ggg $ \s -> runUI window $ do
-        for_ s $ \x -> element _closed # set children [] #+ [x]
-
-
-    let ggg2 = flip fmap <$> bZipper <*> ((\display state zipper -> ListZipper.toList (ListZipper.bextend (display _handleSelection state) zipper)) <$> bDisplay' <*> bState)
-    _open                       <- UI.div #. "buttons has-addons"
-    liftIOLater $ Reactive.onChange ggg2 $ \s -> runUI window $ do
-        for_ s $ \x -> element _open # set children [] #+ x
+    _closed <- open _handlePopup bState bDisplay' bZipper
+    _open <- open _handleSelection bState bDisplay' bZipper
 
     return $ ((_closed, _open), tState, _selection)
+
+
+
+open _handleSelection bState bDisplay bZipper = do
+    _open                       <- UI.div #. "buttons has-addons"
+
+    let bItem = (\x y z -> (x,y,z)) <$> bDisplay <*> bState <*> bZipper
+
+    window <- askWindow
+    liftIOLater $ Reactive.onChange bItem $ \(d,s,z) -> runUI window $ do
+        for_ z $ \z' -> do
+            let children' = ListZipper.toList (ListZipper.bextend (d _handleSelection s) z')
+            element _open # set children [] #+ children'
+
+    return _open
+
+
+closed _handlePopup bState bDisplay bZipper = do
+    _closed                       <- UI.div
+
+    let bItem = (\x y z -> (x,y,z)) <$> bDisplay <*> bState <*> bZipper
+
+    window <- askWindow
+    liftIOLater $ Reactive.onChange bItem $ \(d,s,z) -> runUI window $ do
+        for_ z $ \z' -> do
+            let child = d _handlePopup s False z'
+            element _closed # set children [] #+ [child]
+
+    return _closed

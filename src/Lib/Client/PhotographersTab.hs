@@ -51,6 +51,17 @@ photographersTab
     -> UI PhotographersTab
 photographersTab tTranslations tMode bPhotographers = mdo
 
+
+    {-
+    (_, tNotAsked, _) <- Translation.translation tTranslations tMode (pure "notAsked")
+    (_, tLoading, _) <- Translation.translation tTranslations tMode (pure "loading")
+    (_, tError, _) <- Translation.translation tTranslations tMode (pure "error")
+
+    _loading <- UI.div # sink item (facts tLoading)
+    _notAsked <- UI.div # sink item (facts tNotAsked)
+    _error <- UI.div # sink item (facts tError)
+    -}
+
     ((closed, open), tState, eSelection) <- Dropdown.dropdown tTranslations tMode bZipper bDisplay
 
     let bZipper = (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers)
