@@ -2,16 +2,15 @@
 module Lib.Client.Translation.Translation2
     ( translation
     , Translations
+    , Mode(..)
     , toggle
-    , mode
     )
 where
 
-import Lib.Client.Translation.Translation (Mode(..), Translations(..))
-import Lib.Client.Input.Text
-import qualified Lib.Client.Pop.Popup2 as Popup
+import           Lib.Client.Input.Text
+import qualified Lib.Client.Pop.Popup2         as Popup
 
-import qualified Relude.Unsafe as Unsafe
+import qualified Relude.Unsafe                 as Unsafe
 import           Control.Lens                   ( (^.)
                                                 , (.~)
                                                 , over
@@ -28,37 +27,47 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Data.HashMap.Strict           as HashMap
 
 
+
+data Mode
+    = Translating
+    | Normal
+    deriving (Eq, Show)
+
 toggle :: Mode -> Mode
-toggle Normal = Searching
-toggle Searching = Normal
 toggle Translating = Normal
+toggle Normal      = Translating
 
-mode :: a -> a -> a -> Mode -> a
-mode a _ _ Normal = a
-mode _ b _ Searching = b
-mode _ _ c Translating = c
+type Translations = HashMap String String
 
 
-translation :: Behavior Translations -> Behavior Mode -> Behavior String -> UI ((Element,Element,Element), Behavior Mode)
-translation bTranslations bMode bKey = mdo
+translation
+    :: Tidings Translations
+    -> Tidings Mode
+    -> Behavior String
+    -> UI ((Element, Element, Element), Tidings Element)
+translation tTranslations tMode bKey = mdo
+
+    let bTranslations = facts tTranslations
 
     let bValue = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
-    let bToTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
-
     _text <- UI.span # sink text bValue
 
-    let bOpen = (\s -> "{{"++s++"}}") <$> bKey
-    let bClose = HashMap.lookupDefault "close" "close" <$> bTranslations
-    ((_open, _close), tMode) <- Popup.popup bOpen bClose
+    let bOpen  = (\s -> "{{" ++ s ++ "}}") <$> bKey
+    let bClose = HashMap.lookupDefault "close" "close" <$> bTranslations -- this wrong?
+    ((_open, _close), tPopup) <- Popup.popup bOpen bClose
 
+    let bToTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
     _translationInput <- entry bToTranslate
-    _popup <- UI.div #+
-        [ element _translationInput
-        , element _close
-        ]
+    _popup <- UI.div #+ [element _translationInput, element _close]
 
     let _translation = userText _translationInput
 
-    let bToggle = ((\toggle mode -> if toggle == Popup.Open then Translating else mode) <$> (facts tMode) <*> bMode) -- not facts pls
+    let tToggle =
+            (\popup mode -> if popup == Popup.Open && mode == Translating
+                    then _popup
+                    else if popup == Popup.Closed then _open else _text
+                )
+                <$> tPopup
+                <*> tMode
 
-    return ((_text, _open, _popup), bToggle)
+    return ((_text, _open, _popup), tToggle)

@@ -7,8 +7,10 @@ where
 import Control.Conditional ((?<>))
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Client.Select.Dropdown2 as Dropdown
-import qualified Lib.Client.Translation.Translation
+
+import qualified Lib.Client.Translation.Translation2
                                                as Translation
+
 import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
@@ -41,24 +43,25 @@ item :: WriteAttr Element Element
 item = mkWriteAttr $ \i x -> void $ do
     return x # set children [i]
 
+
 photographersTab
-    :: Behavior Translation.Translations
-    -> Behavior Translation.Mode
+    :: Tidings Translation.Translations
+    -> Tidings Translation.Mode
     -> Behavior (Data.Data String Photographer.Photographers)
     -> UI PhotographersTab
-photographersTab bTranslations bMode bPhotographers = mdo
+photographersTab tTranslations tMode bPhotographers = mdo
 
-    ((closed, open), tBool, eSelection) <- Dropdown.dropdown bTranslations bMode bZipper bDisplay
+    ((closed, open), tState, eSelection) <- Dropdown.dropdown tTranslations tMode bZipper bDisplay
 
     let bZipper = (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers)
 
-    let bDisplay = pure $ \s b x -> do
-            text <- UI.span # set text (x ^. Photographer.name)
+    let bDisplay = pure $ \state center photographer -> do
+            text <- UI.span # set text (photographer ^. Photographer.name)
             icon <-
                 UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
             UI.button
-                #. (b ?<> "is-info is-seleceted" <> " " <> "button")
-                #+ fmap element ([text] <> not s ?<> [icon])
+                #. (center ?<> "is-info is-seleceted" <> " " <> "button")
+                #+ fmap element ([text] <> not state ?<> [icon])
 
 
     let _selection =
@@ -67,6 +70,6 @@ photographersTab bTranslations bMode bPhotographers = mdo
                 <$> fmap Photographer.Photographers
                 <$> eSelection
 
-    _container <- UI.div # sink item ((\b -> if b then open else closed) <$> facts tBool)
+    _container <- UI.div # sink item ((\b -> if b then open else closed) <$> facts tState)
 
     return PhotographersTab { .. }

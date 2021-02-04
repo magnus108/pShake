@@ -8,6 +8,9 @@ import qualified Lib.Client.Pop.Popup as Popup
 import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
                                                as Translation
+
+import qualified Lib.Client.Translation.Translation2
+                                               as T
 import           Data.Char
 import           Data.List
 import qualified System.FilePath               as FP
@@ -1343,7 +1346,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
         switchMode <- UI.button #. "button" # set text "skift"
+
         let eSwitchMode = UI.click switchMode
+
         bMode <-
             stepper Translation.Normal
             $   Translation.toggle
@@ -1379,8 +1384,31 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let eSelection = Select._selection selectors
 
 
-        photographers <- PhotographersTab.photographersTab bTranslations
-                                                           bMode
+
+
+
+
+
+
+        bMode' <-
+            stepper T.Normal
+            $   T.toggle
+            <$> bMode'
+            <@  eSwitchMode
+
+        let tMode = tidings bMode' (bMode' <@ eSwitchMode)
+
+        bTranslations' <-
+            stepper
+                    (HashMap.fromList
+                        [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
+                    )
+                $ UI.never -- Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
+
+        let tTranslations = tidings bTranslations' UI.never
+
+        photographers <- PhotographersTab.photographersTab tTranslations
+                                                           tMode
                                                            bPhotographers
 
         shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings

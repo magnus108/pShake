@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFoldable #-}
 module Lib.Model.Data
     ( Data(..)
     , toJust
@@ -13,6 +14,7 @@ data Data e s
     | Data s
         deriving Show
         deriving Functor
+        deriving Foldable
 
 instance Bifunctor Data where
     bimap _ _ NotAsked = NotAsked
