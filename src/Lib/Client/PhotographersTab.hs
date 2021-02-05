@@ -1,9 +1,11 @@
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TupleSections #-}
 module Lib.Client.PhotographersTab
     ( photographersTab
     , PhotographersTab(..)
     )
 where
+import qualified Lib.Client.Pop.Popup2         as Popup
 import Control.Conditional ((?<>))
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Client.Select.Dropdown2 as Dropdown
@@ -39,41 +41,42 @@ instance Widget PhotographersTab where
     getElement = _container
 
 
-item :: WriteAttr Element Element
-item = mkWriteAttr $ \i x -> void $ do
-    return x # set children [i]
+
+translation text' openButton popup = mkWriteAttr $ \(tm, pm) x -> void $ do
+        case (tm,pm) of
+            (Translation.Translating, Popup.Open) ->  return x # set children [popup]
+            (Translation.Translating, Popup.Closed) -> return x # set children [openButton]
+            _ -> return x # set children [text']
 
 
 photographersTab
-    :: Tidings Translation.Translations
-    -> Tidings Translation.Mode
+    :: Behavior Translation.Translations
+    -> Behavior Translation.Mode
     -> Behavior (Data.Data String Photographer.Photographers)
     -> UI PhotographersTab
-photographersTab tTranslations tMode bPhotographers = mdo
+photographersTab bTranslations bTransMode bPhotographers = do
+
+    ((textNotAsked, openButtonNotAsked, popupNotAsked), bPopModeNotAsked, tTransNotAsked) <- Translation.translation2 bTranslations bTransMode (pure "notAsked")
+    notAsked <- UI.div # sink (translation textNotAsked openButtonNotAsked popupNotAsked) ((,) <$> bTransMode <*> (facts bPopModeNotAsked))
+
+    ((textLoading, openButtonLoading, popupLoading), bPopModeLoading, tTransLoading) <- Translation.translation2 bTranslations bTransMode (pure "loading")
+    loading <- UI.div # sink (translation textLoading openButtonLoading popupLoading) ((,) <$> bTransMode <*> (facts bPopModeLoading))
+
+    ((textError, openButtonError, popupError), bPopModeError, tTransError) <- Translation.translation2 bTranslations bTransMode (pure "error")
+    error' <- UI.div # sink (translation textError openButtonError popupError) ((,) <$> bTransMode <*> (facts bPopModeError))
 
 
-    {-
-    (_, tNotAsked, _) <- Translation.translation tTranslations tMode (pure "notAsked")
-    (_, tLoading, _) <- Translation.translation tTranslations tMode (pure "loading")
-    (_, tError, _) <- Translation.translation tTranslations tMode (pure "error")
+    let bZipper = fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers
 
-    _loading <- UI.div # sink item (facts tLoading)
-    _notAsked <- UI.div # sink item (facts tNotAsked)
-    _error <- UI.div # sink item (facts tError)
-    -}
-
-    ((closed, open), tState, eSelection) <- Dropdown.dropdown tTranslations tMode bZipper bDisplay
-
-    let bZipper = (fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers)
-
-    let bDisplay = pure $ \state center photographer -> do
+    let bDisplay = pure $ \mode center photographer -> do
             text <- UI.span # set text (photographer ^. Photographer.name)
             icon <-
                 UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
             UI.button
                 #. (center ?<> "is-info is-seleceted" <> " " <> "button")
-                #+ fmap element ([text] <> not state ?<> [icon])
+                #+ fmap element ([text] <> not (mode == Dropdown.Open) ?<> [icon])
 
+    ((closed, open), tDropMode, eSelection) <- Dropdown.dropdown2 bTranslations bTransMode bZipper bDisplay
 
     let _selection =
             filterJust
@@ -81,6 +84,19 @@ photographersTab tTranslations tMode bPhotographers = mdo
                 <$> fmap Photographer.Photographers
                 <$> eSelection
 
-    _container <- UI.div # sink item ((\b -> if b then open else closed) <$> facts tState)
+    let state = mkWriteAttr $ \(data', dropMode) x -> void $ do
+                    case data' of
+                        Data.NotAsked -> return x # set children [notAsked]
+                        Data.Loading -> return x # set children [loading]
+                        Data.Failure _ -> return x # set children [error']
+                        Data.Data _ -> do -- wierd
+                            case dropMode of
+                                Dropdown.Open ->
+                                    return x # set children [open]
+                                Dropdown.Closed ->
+                                    return x # set children [closed]
+
+    _container <- UI.div # sink state ((,) <$> bPhotographers <*> (facts tDropMode))
 
     return PhotographersTab { .. }
+

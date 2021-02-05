@@ -1407,8 +1407,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let tTranslations = tidings bTranslations' UI.never
 
-        photographers <- PhotographersTab.photographersTab tTranslations
-                                                           tMode
+        photographers <- PhotographersTab.photographersTab (facts tTranslations)
+                                                           (facts tMode)
                                                            bPhotographers
 
         shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings

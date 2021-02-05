@@ -2,9 +2,11 @@
 module Lib.Client.Pop.Popup2
     ( popup
     , Mode(..)
+    , popup2
     )
 where
 
+import qualified Lib.Model.Data                as Data
 import qualified Relude.Unsafe as Unsafe
 import           Control.Lens                   ( (^.)
                                                 , (.~)
@@ -46,3 +48,23 @@ popup open close = mdo
     bMode <- stepper Closed $ switch <$> _e
 
     return ((_buttonClose, _buttonOpen), tidings bMode _e)
+
+
+popup2 :: Behavior String -> Behavior String -> UI ((Element,Element), Tidings Mode)
+popup2 bOpen bClose = mdo
+    open <- UI.button #. "button" # sink text bOpen
+    close <- UI.button #. "button" # sink text bClose
+
+    let eOpen = bMode <@ UI.click open
+    let eClose = bMode <@ UI.click close
+
+    let eClick = Unsafe.head <$> unions
+            [ eClose
+            , eOpen
+            ]
+
+    bMode <- stepper Closed $ switch <$> eClick
+
+    let tMode = tidings bMode eClick
+
+    return ((close, open), tMode)

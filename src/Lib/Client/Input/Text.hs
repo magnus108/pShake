@@ -64,3 +64,5 @@ entry bValue = do
         _userTE    = tidings bValue $ UI.valueChange input
 
     return TextEntry { .. }
+
+

@@ -4,10 +4,12 @@ module Lib.Client.Translation.Translation2
     , Translations
     , Mode(..)
     , toggle
+    , translation2
     )
 where
 
-import           Lib.Client.Input.Text
+import qualified Lib.Model.Data                as Data
+import qualified Lib.Client.Input.Text as Entry
 import qualified Lib.Client.Pop.Popup2         as Popup
 
 import qualified Relude.Unsafe                 as Unsafe
@@ -44,7 +46,7 @@ translation
     :: Tidings Translations
     -> Tidings Mode
     -> Behavior String
-    -> UI ((Element, Element, Element), Tidings Element, Tidings String)
+    -> UI ((Element, Element, Element), Tidings Popup.Mode, Tidings String)
 translation tTranslations tMode bKey = mdo
 
     let bTranslations = facts tTranslations
@@ -57,17 +59,34 @@ translation tTranslations tMode bKey = mdo
     ((_open, _close), tPopup) <- Popup.popup bOpen bClose
 
     let bToTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
-    _translationInput <- entry bToTranslate
+    _translationInput <- Entry.entry bToTranslate
     _popup <- UI.div #+ [element _translationInput, element _close]
 
-    let _translation = userText _translationInput
+    let _translation = Entry.userText _translationInput
 
-    let tToggle =
-            (\popup mode -> if popup == Popup.Open && mode == Translating
-                    then _popup
-                    else if popup == Popup.Closed then _open else _text
-                )
-                <$> tPopup
-                <*> tMode
+    return ((_text, _open, _popup), tPopup, _translation)
 
-    return ((_text, _open, _popup), tToggle, _translation)
+
+
+
+translation2
+    :: Behavior Translations
+    -> Behavior Mode
+    -> Behavior String
+    -> UI ((Element, Element, Element), Tidings Popup.Mode, Tidings String)
+translation2 bTranslations bMode bKey = mdo
+
+    ((open, close), tPopup) <- Popup.popup2 bOpen bClose
+
+    text' <- UI.span # sink text bText
+    input <- Entry.entry bTranslate
+    popup <- UI.div #+ [element input, element close]
+
+    let bText = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
+    let bOpen  = (\s -> ("{{" ++ s ++ "}}")) <$> bKey
+    let bClose = HashMap.lookupDefault "close" "close" <$> bTranslations
+    let bTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
+
+    let tTranslation = Entry.userText input
+
+    return ((text', open, popup), tPopup, tTranslation)
