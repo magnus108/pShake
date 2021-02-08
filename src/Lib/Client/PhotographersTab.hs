@@ -5,6 +5,7 @@ module Lib.Client.PhotographersTab
     , PhotographersTab(..)
     )
 where
+import           Utils.Comonad
 
 import qualified Lib.Client.Input.Text         as Entry
 import qualified Utils.ListZipper              as ListZipper
@@ -54,33 +55,23 @@ photographersTab
     -> UI PhotographersTab
 photographersTab bTranslations bTransMode bPhotographers = do
 
-    let bZipper =
-            fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers
+    let bZipper = Lens.view Photographer.unPhotographers <<$>> bPhotographers
 
     let
-        bDisplay = pure $ \mode center photographer -> do
-            text <- UI.span # set text (photographer ^. Photographer.name)
-            icon <-
-                UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
-            UI.button
-                #. (center ?<> "is-info is-seleceted" <> " " <> "button")
-                #+ fmap element
-                        ([text] <> not (mode == Dropdown.Open) ?<> [icon])
+        bDisplayOpen = pure $ \center photographer -> do
+                text <- UI.span # set text (photographer ^. Photographer.name)
+                UI.button
+                    #. (center ?<> "is-info is-seleceted" <> " " <> "button")
+                    #+ fmap element [text]
 
-    -- HANDLER MÅ IKKE KOMME MED UD..
-    (bItem, hSelection, hPopup, eSelection) <- Dropdown.dropdown2
-        bTranslations
-        bTransMode
-        bZipper
-        bDisplay
-
-    let _selection =
-            filterJust
-                $   Data.toJust
-                <$> fmap Photographer.Photographers
-                <$> eSelection
-
-
+    let
+        bDisplayClosed = pure $ \photographer -> do
+                    text <- UI.span # set text (photographer ^. Photographer.name)
+                    icon <-
+                        UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
+                    UI.button
+                        #. "button"
+                        #+ fmap element [text, icon]
 
 
     open   <- UI.div #. "buttons has-addons"
@@ -89,8 +80,16 @@ photographersTab bTranslations bTransMode bPhotographers = do
     transNotAsked <- Translation.translation bTranslations bTransMode (pure "notAsked")
     transLoading <- Translation.translation bTranslations bTransMode (pure "loading")
 
+    (bView, tDropMode, eSelection) <- Dropdown.dropdown2
+        bTranslations
+        bTransMode
+        bZipper
+        bDisplayClosed
+        bDisplayOpen
+
+
     let
-        state = mkWriteAttr $ \(data', tm, pmError, pmLoading, pmNotAsked) x -> void $ do
+        state = mkWriteAttr $ \(data', dropMode, tm, pmError, pmLoading, pmNotAsked) x -> void $ do
             case data' of
                 Data.NotAsked  -> do
                     case (tm, pmNotAsked) of
@@ -113,28 +112,25 @@ photographersTab bTranslations bTransMode bPhotographers = do
                         (Translation.Translating, Popup.Closed) ->
                             return x # set children [Translation._open transError]
                         _ -> return x # set children [Translation._text transError]
-                Data.Data (d, s, z) -> do -- wierd
-                    case s of
+                Data.Data f -> do -- wierd
+                    case dropMode of
                         Dropdown.Open -> do
-                            let
-                                children' = ListZipper.toList
-                                    (ListZipper.bextend (d hSelection s) z)
-                            return x
-                                #  set children []
-                                #+ [element open # set children [] #+ children']
+                            return x # set children [] #+ [element open # set children [] #+ f]
                         Dropdown.Closed -> do
-                            let child = d hPopup s False z
-                            return x
-                                #  set children []
-                                #+ [element closed # set children [] #+ [child]]
+                            return x # set children [] #+ [element closed # set children [] #+ f]
 
 
     _container <- UI.div
-        # sink state ((,,,,) <$> bItem <*> bTransMode <*> (facts (Translation._tPopup transError)) <*> (facts (Translation._tPopup transLoading)) <*> (facts (Translation._tPopup  transNotAsked)))
+        # sink state ((,,,,,) <$> bView <*> (facts tDropMode) <*> bTransMode <*> (facts (Translation._tPopup transError)) <*> (facts (Translation._tPopup transLoading)) <*> (facts (Translation._tPopup  transNotAsked)))
 
     let _eH2 = (Translation._eInput transLoading, Translation._bKey transLoading)
     let _eH3 = (Translation._eInput transNotAsked, Translation._bKey transNotAsked)
     let _eH1 = (Translation._eInput transError, Translation._bKey transError)
+    let _selection =
+            filterJust
+                $   Data.toJust
+                <$> fmap Photographer.Photographers
+                <$> eSelection
 
     return PhotographersTab { .. }
 

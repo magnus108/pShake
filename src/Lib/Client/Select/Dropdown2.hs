@@ -37,18 +37,12 @@ switch Open = Closed
 switch Closed = Open
 
 
-writeOpen handle = mkWriteAttr $ \(d,s,z) x -> void $ do
-                        for_ z $ \z' -> do
-                                    let children' = ListZipper.toList (ListZipper.bextend (d handle s) z')
-                                    return x # set children [] #+ children'
-
-writeClose handle = mkWriteAttr $ \(d,s,z) x -> void $ do
-                        for_ z $ \z' -> do
-                                let child = d handle s False z'
-                                return x # set children [] #+ [child]
-
-    -- -> UI ((Element, Element), Tidings Mode, Event (Data.Data String (ListZipper.ListZipper a)))
-dropdown2 bTranslations bTransMode bZipper bDisplay = mdo
+dropdown2 :: Eq a => Behavior Translation.Translations 
+    -> Behavior Translation.Mode -> Behavior (Data.Data String (ListZipper.ListZipper a))
+    -> Behavior (a -> UI Element)
+    -> Behavior (Bool -> a -> UI Element)
+    -> UI (Behavior (Data.Data String ([UI Element])), Tidings Mode, Event (Data.Data String (ListZipper.ListZipper a)))
+dropdown2 bTranslations bTransMode bZipper bDisplayClosed bDisplayOpen = mdo
 
     (eSelection, hSelection) <- liftIO $ newEvent
     (ePopup , hPopup      ) <- liftIO $ newEvent
@@ -61,14 +55,27 @@ dropdown2 bTranslations bTransMode bZipper bDisplay = mdo
     bDropMode <- stepper Closed $ eSwitch
     let tDropMode = tidings bDropMode eSwitch
 
-    let bDisplay' = bDisplay <&> \f h m b (zipper :: ListZipper.ListZipper a) -> do
-            display <- f m b (extract zipper)
+    let bDisplayOpen' = bDisplayOpen <&> \f b (zipper :: ListZipper.ListZipper a) -> do
+            display <- f b (extract zipper)
 
             UI.on UI.click display $ \_ -> do
-                liftIO $ h (Data.Data zipper)
+                liftIO $ hSelection (Data.Data zipper)
 
             return $ display
 
-    let bItem = (\d s z -> fmap (\z' -> (d,s,z')) z) <$> bDisplay' <*> bDropMode <*> bZipper
+    let bDisplayClosed' = bDisplayClosed <&> \f (zipper :: ListZipper.ListZipper a) -> do
+            display <- f (extract zipper)
 
-    return $ (bItem, hSelection, hPopup, eSelection)
+            UI.on UI.click display $ \_ -> do
+                liftIO $ hPopup ()
+
+            return $ display
+
+    let bItem = (\opened closed mode zipper ->
+                    if mode == Open then
+                        fmap (\z -> ListZipper.toList (ListZipper.bextend opened z)) zipper
+                    else
+                        fmap (\z -> [closed z]) zipper
+                ) <$> bDisplayOpen' <*> bDisplayClosed' <*> bDropMode <*> bZipper
+
+    return $ (bItem, tDropMode, eSelection)
