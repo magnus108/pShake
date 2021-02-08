@@ -10,7 +10,7 @@ where
 
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Client.Input.Text         as Entry
-import qualified Lib.Client.Pop.Popup2         as Popup
+import qualified Lib.Client.Pop.Popup         as Popup
 
 import qualified Relude.Unsafe                 as Unsafe
 import           Control.Lens                   ( (^.)

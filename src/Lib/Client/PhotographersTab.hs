@@ -8,7 +8,7 @@ where
 
 import qualified Lib.Client.Input.Text         as Entry
 import qualified Utils.ListZipper              as ListZipper
-import qualified Lib.Client.Pop.Popup2         as Popup
+import qualified Lib.Client.Pop.Popup         as Popup
 import           Control.Conditional            ( (?<>) )
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Client.Select.Dropdown2   as Dropdown

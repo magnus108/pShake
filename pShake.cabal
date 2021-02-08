@@ -40,7 +40,6 @@ library
       Lib.Client.PhotographersTab
       Lib.Client.Picker.Picker
       Lib.Client.Pop.Popup
-      Lib.Client.Pop.Popup2
       Lib.Client.Select.Dropdown
       Lib.Client.Select.Dropdown2
       Lib.Client.Select.Select

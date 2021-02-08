@@ -1438,23 +1438,6 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         elemMainTab <- Main.mainTab bGrades bDumpDir bBuild
 
 
-        pop <- Popup.popup (pure $ \x -> return x) (pure $ \x -> return x)
-
-
-
-    {-
-        bpop3 <- Popup.popup3 (pure $ \x -> return x) (pure $ \x -> return x)
-        lol <- Popup.popup4 
-        let bpop4 = either (\x -> return x) (\x -> return x) <$> lol
-        -}
-
-        ((e1,e2), t3) <- Popup.popup5
-        
-        let myB = (\b -> case b of
-                            Popup.Closed -> return e1
-                            Popup.Open -> return e2
-                    ) <$> t3
-
 
 
         element _ss
@@ -1473,8 +1456,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                             elemPhotograheesInput
                             elemPhotograheesInput2
                             elemMainTab
-                  )
-                  ((\x y -> (x,y)) <$> bTabs <*> (facts myB))
+                  ) bTabs
 
 
 
@@ -1530,7 +1512,7 @@ mkTabListItem (thisIndex, isCenter, tab) = do
 
 
 tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
-    = mkWriteAttr $ \(i,a) x -> void $ do
+    = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
             Data.Loading   -> return x # set text "bobo"
@@ -1542,7 +1524,7 @@ tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBack
                     Tab.MainTab -> do
                         return x
                             #  set children [] -- THIS IS DANGEROUS?
-                            #+ [element mainTab, a]
+                            #+ [element mainTab]
 
                     Tab.ShootingsTab -> do
                         return x # set children [] #+ [element shootings]

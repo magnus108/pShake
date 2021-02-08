@@ -1,14 +1,12 @@
 {-# LANGUAGE RecursiveDo #-}
 module Lib.Client.Pop.Popup
-    ( Popup(..)
+    ( Mode(..)
     , popup
-    , Mode(..)
-    , popup3
-    , popup4
-    , popup5
+    , PopupEntry(..)
     )
 where
 
+import qualified Lib.Model.Data                as Data
 import qualified Relude.Unsafe as Unsafe
 import           Control.Lens                   ( (^.)
                                                 , (.~)
@@ -23,7 +21,6 @@ import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
 
-import qualified Lib.Client.Translation.Translation as Translation
 
 data Mode
     = Closed
@@ -34,94 +31,27 @@ switch :: Mode -> Mode
 switch Open = Closed
 switch Closed = Open
 
-
-data Popup = Popup
-    { _container :: Behavior (UI Element)
-    , _tPop :: Tidings Mode
+data PopupEntry = PopupEntry
+    { _close :: Element
+    , _open :: Element
+    , _tPopup :: Tidings Mode
     }
 
-popup :: Behavior (Element -> UI Element) -> Behavior (Element -> UI Element) -> UI Popup
-popup bf bg = mdo
-    _buttonOpen <- UI.button #. "button" # set text "open"
-    _buttonClose <- UI.button #. "button" # set text "close"
+popup :: Behavior String -> Behavior String -> UI PopupEntry
+popup bOpen bClose = mdo
+    _open <- UI.button #. "button" # sink text bOpen
+    _close <- UI.button #. "button" # sink text bClose
 
-    let _eOpen = _bMode <@ UI.click _buttonOpen
-    let _eClose = _bMode <@ UI.click _buttonClose
+    let eOpen = bMode <@ UI.click _open
+    let eClose = bMode <@ UI.click _close
 
-    let _e = Unsafe.head <$> unions
-            [ _eClose
-            , _eOpen
+    let eClick = Unsafe.head <$> unions
+            [ eClose
+            , eOpen
             ]
 
-    _bMode <- stepper Closed $ (\x -> case x of 
-                                            Open -> Closed
-                                            Closed -> Open
-                                    ) <$> _e
+    bMode <- stepper Closed $ switch <$> eClick
 
-    let _container = (\mode f g -> case mode of
-                        Closed -> f _buttonClose
-                        Open -> g _buttonOpen
-                        ) <$> _bMode <*> bf <*> bg
+    let _tPopup = tidings bMode eClick
 
-
-    let _tPop = tidings _bMode _e
-
-    return Popup { .. }
-
-
-popup4 :: UI (Behavior (Either Element Element))
-popup4 = mdo
-    _buttonOpen <- UI.button #. "button" # set text "open3"
-    _buttonClose <- UI.button #. "button" # set text "close3"
-
-    let _eOpen = bMode <@ UI.click _buttonOpen
-    let _eClose = bMode <@ UI.click _buttonClose
-
-    let _e = Unsafe.head <$> unions
-            [ _eClose
-            , _eOpen
-            ]
-
-    bMode <- stepper Closed $ switch <$> _e
-
-    return $ (\m -> case m of
-            Closed -> Left _buttonClose
-            Open -> Right _buttonOpen ) <$> bMode
-
-
-popup3 :: Behavior (Element -> UI Element) -> Behavior (Element -> UI Element) -> UI (Behavior (UI Element))
-popup3 bf bg = mdo
-    _buttonOpen <- UI.button #. "button" # set text "open3"
-    _buttonClose <- UI.button #. "button" # set text "close3"
-
-    let _eOpen = bMode <@ UI.click _buttonOpen
-    let _eClose = bMode <@ UI.click _buttonClose
-
-    let _e = Unsafe.head <$> unions
-            [ _eClose
-            , _eOpen
-            ]
-
-    bMode <- stepper Closed $ switch <$> _e
-
-    return $ (\m f g -> case m of
-            Closed -> f _buttonClose
-            Open -> g _buttonOpen ) <$> bMode <*> bf <*> bg
-
-popup5 :: UI ((Element,Element), Tidings Mode)
-popup5 = mdo
-    _buttonOpen <- UI.button #. "button" # set text "open5"
-    _buttonClose <- UI.button #. "button" # set text "close5"
-
-    let _eOpen = bMode <@ UI.click _buttonOpen
-    let _eClose = bMode <@ UI.click _buttonClose
-
-    let _e = Unsafe.head <$> unions
-            [ _eClose
-            , _eOpen
-            ]
-
-    bMode <- stepper Closed $ switch <$> _e
-
-    return ((_buttonClose, _buttonOpen), tidings bMode _e)
-
+    return PopupEntry { .. }
