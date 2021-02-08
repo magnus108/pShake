@@ -47,13 +47,7 @@ writeClose handle = mkWriteAttr $ \(d,s,z) x -> void $ do
                                 let child = d handle s False z'
                                 return x # set children [] #+ [child]
 
-dropdown2
-    :: (Show a, Eq a)
-    => Behavior Translation.Translations
-    -> Behavior Translation.Mode
-    -> Behavior (Data.Data String (ListZipper.ListZipper a))
-    -> Behavior (Mode -> Bool -> a -> UI Element)
-    -> UI ((Element, Element), Tidings Mode, Event (Data.Data String (ListZipper.ListZipper a)))
+    -- -> UI ((Element, Element), Tidings Mode, Event (Data.Data String (ListZipper.ListZipper a)))
 dropdown2 bTranslations bTransMode bZipper bDisplay = mdo
 
     (eSelection, hSelection) <- liftIO $ newEvent
@@ -75,8 +69,6 @@ dropdown2 bTranslations bTransMode bZipper bDisplay = mdo
 
             return $ display
 
-    let bItem = ((,,)) <$> bDisplay' <*> bDropMode <*> bZipper
-    open                       <- UI.div #. "buttons has-addons" # sink (writeOpen hSelection) bItem
-    closed                       <- UI.div # sink (writeClose hPopup) bItem
+    let bItem = (\d s z -> fmap (\z' -> (d,s,z')) z) <$> bDisplay' <*> bDropMode <*> bZipper
 
-    return $ ((closed, open), tDropMode, eSelection)
+    return $ (bItem, hSelection, hPopup, eSelection)

@@ -4,6 +4,7 @@ module Lib.Server
     )
 where
 
+import qualified Lib.Client.Input.Text as TextEntry
 import qualified Lib.Client.Pop.Popup as Popup
 import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
@@ -1398,18 +1399,23 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let tMode = tidings bMode' (bMode' <@ eSwitchMode)
 
+
+        photographers <- PhotographersTab.photographersTab (facts tTranslations)
+                                                           (facts tMode)
+                                                           bPhotographers
+
         bTranslations' <-
             stepper
                     (HashMap.fromList
                         [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
                     )
-                $ UI.never -- Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
+                $ Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH1 photographers) <@> (fst $ PhotographersTab._eH1 photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH2 photographers) <@> (fst $ PhotographersTab._eH2 photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH3 photographers) <@> (fst $ PhotographersTab._eH3 photographers)
+                                         ]
 
         let tTranslations = tidings bTranslations' UI.never
 
-        photographers <- PhotographersTab.photographersTab (facts tTranslations)
-                                                           (facts tMode)
-                                                           bPhotographers
 
         shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings
         elemDump           <- DumpTab.dumpTab bTranslations bMode bDump
