@@ -13,7 +13,7 @@ import           Control.Conditional            ( (?<>) )
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Client.Select.Dropdown2   as Dropdown
 
-import qualified Lib.Client.Translation.Translation2
+import qualified Lib.Client.Translation.Translation
                                                as Translation
 
 import qualified Data.HashMap.Strict           as HashMap

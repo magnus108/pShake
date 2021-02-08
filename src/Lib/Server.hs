@@ -10,8 +10,6 @@ import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
                                                as Translation
 
-import qualified Lib.Client.Translation.Translation2
-                                               as T
 import           Data.Char
 import           Data.List
 import qualified System.FilePath               as FP
@@ -1371,7 +1369,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                         trans <- Translation.translation bTranslations
                                                         bMode
                                                         (pure (show x))
-                        element trans
+                        --element trans
+                        UI.div
 
 
 
@@ -1380,7 +1379,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         fallback <- Translation.translation bTranslations bMode (pure "pick")
 
-        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> (element fallback))
+        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> UI.div )--(element fallback))
     
         let eSelection = Select._selection selectors
 
@@ -1392,8 +1391,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
         bMode' <-
-            stepper T.Normal
-            $   T.toggle
+            stepper Translation.Normal
+            $   Translation.toggle
             <$> bMode'
             <@  eSwitchMode
 

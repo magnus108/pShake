@@ -47,7 +47,6 @@ library
       Lib.Client.SessionsTab
       Lib.Client.ShootingsTab
       Lib.Client.Translation.Translation
-      Lib.Client.Translation.Translation2
       Lib.Config
       Lib.Message
       Lib.Model.Build

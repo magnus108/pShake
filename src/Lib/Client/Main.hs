@@ -278,22 +278,6 @@ mainTab bGrades bDumpDir bBuild = mdo
     let _eBuild = _build elemBuild
 
 
-
-
-    switchMode <- UI.button # set text "skift"
-    let eSwitchMode = UI.click switchMode
-
-    bMode <- stepper Normal $ toggle <$> bMode <@ eSwitchMode
-    let bKey = pure "ok"
-
-    test <- translation bTranslations bMode bKey
-    let eTest = _translation test
-
-    bTranslations <- stepper (HashMap.fromList [("ok", "OK!"), ("photographer","Fotograf")]) $
-            Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
-
-
-
     element _elementMainTab
         #+ [ element elemGrades
            , element elemPhotographees
@@ -301,8 +285,6 @@ mainTab bGrades bDumpDir bBuild = mdo
            , element elemDumpDirCount
            , element elemSearch
            , element elemBuild
-           , element test
-           , element switchMode
            ]
 
     return MainTab { .. }

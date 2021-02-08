@@ -44,11 +44,11 @@ dagsdatoTab :: Behavior Translation.Translations -> Behavior Translation.Mode ->
 dagsdatoTab bTranslations bMode bDagsdato = mdo
 
     fallback <- Translation.translation bTranslations bMode (pure "pick")
-    let eFallback = Translation._translation fallback
+    let eFallback = UI.div --Translation._translation fallback
 
     let bDisplay = pure $ \x -> UI.string x
     let bFilepath = fmap (Lens.view Dagsdato.unDagsdato ) <$> bDagsdato
-    picker <- Picker.picker bTranslations bMode bFilepath bDisplay (pure $ \_ -> (element fallback))
+    picker <- Picker.picker bTranslations bMode bFilepath bDisplay (pure $ \_ -> eFallback) --(element fallback))
 
     _container <- UI.div #+ [element picker]
     let _selection = Picker._selection picker

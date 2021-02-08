@@ -7,7 +7,7 @@ module Lib.Client.Select.Dropdown2
 where
 
 
-import qualified Lib.Client.Translation.Translation2 as Translation
+import qualified Lib.Client.Translation.Translation as Translation
 import qualified Lib.Client.Select.Select      as Select
 import qualified Lib.Model.Data                as Data
 import           Prelude                 hiding ( get )

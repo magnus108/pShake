@@ -44,11 +44,11 @@ dumpTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Beh
 dumpTab bTranslations bMode bDump = mdo
 
     fallback <- Translation.translation bTranslations bMode (pure "pick")
-    let eFallback = Translation._translation fallback
+    let eFallback = UI.div --Translation._translation fallback
 
     let display = pure $ \x -> UI.string x
     let filepath = fmap (Lens.view Dump.unDump) <$> bDump
-    picker <- Picker.picker bTranslations bMode filepath display (pure $ \_ -> (element fallback))
+    picker <- Picker.picker bTranslations bMode filepath display (pure $ \_ -> eFallback) --(element fallback))
 
     _container <- UI.div #+ [element picker]
     let _selection = Picker._selection picker

@@ -21,7 +21,6 @@ import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
 
-import qualified Lib.Client.Translation.Translation as Translation
 
 data Mode
     = Closed

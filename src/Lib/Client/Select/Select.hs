@@ -66,12 +66,13 @@ select bTranslations bMode bZipper bDisplay bFallback = mdo
                     )
                 <$> bDisplay <*> bMode
 
-    notAsked <- Translation.translation bTranslations bMode (pure "notAsked")
-    loading  <- Translation.translation bTranslations bMode (pure "loading")
+    notAsked <- UI.div --Translation.translation bTranslations bMode (pure "notAsked")
+    loading  <- UI.div -- Translation.translation bTranslations bMode (pure "loading")
 
     _        <- element _container # sink
         items
-        (   Data.data' (element notAsked) (element loading)
+        (   Data.data' (return notAsked) (return loading)
+            --(element notAsked) (element loading)
         <$> bFallback
         <*> bDisplay'
         <*> bZipper
