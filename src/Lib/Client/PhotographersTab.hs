@@ -54,7 +54,6 @@ photographersTab
     -> UI PhotographersTab
 photographersTab bTranslations bTransMode bPhotographers = do
 
-
     let bZipper =
             fmap (Lens.view Photographer.unPhotographers) <$> bPhotographers
 
@@ -83,18 +82,12 @@ photographersTab bTranslations bTransMode bPhotographers = do
 
 
 
-    let errorTrans    = pure "error"
-    let notAskedTrans = pure "notAsked"
-    let loadingTrans  = pure "loading"
-    ((textError, closeButtonError, openButtonError, inputError), bPopModeError) <-
-        Translation.translation2 bTranslations bTransMode errorTrans
-    ((textNotAsked, closeButtonNotAsked, openButtonNotAsked, inputNotAsked), bPopModeNotAsked) <-
-        Translation.translation2 bTranslations bTransMode notAskedTrans
-    ((textLoading, closeButtonLoading, openButtonLoading, inputLoading), bPopModeLoading) <-
-        Translation.translation2 bTranslations bTransMode loadingTrans
+
     open   <- UI.div #. "buttons has-addons"
     closed <- UI.div
-
+    transError <- Translation.translation bTranslations bTransMode (pure "error")
+    transNotAsked <- Translation.translation bTranslations bTransMode (pure "notAsked")
+    transLoading <- Translation.translation bTranslations bTransMode (pure "loading")
 
     let
         state = mkWriteAttr $ \(data', tm, pmError, pmLoading, pmNotAsked) x -> void $ do
@@ -102,27 +95,24 @@ photographersTab bTranslations bTransMode bPhotographers = do
                 Data.NotAsked  -> do
                     case (tm, pmNotAsked) of
                         (Translation.Translating, Popup.Open) -> do
-                            i <- element inputNotAsked
-                            return x # set children [i, closeButtonNotAsked]
+                            return x # set children [Translation._input transNotAsked, Translation._close transNotAsked]
                         (Translation.Translating, Popup.Closed) ->
-                            return x # set children [openButtonNotAsked]
-                        _ -> return x # set children [textNotAsked]
+                            return x # set children [Translation._open transNotAsked]
+                        _ -> return x # set children [Translation._text transNotAsked]
                 Data.Loading   -> do
                     case (tm, pmLoading) of
                         (Translation.Translating, Popup.Open) -> do
-                            i <- element inputLoading
-                            return x # set children [i, closeButtonLoading]
+                            return x # set children [Translation._input transLoading, Translation._close transLoading]
                         (Translation.Translating, Popup.Closed) ->
-                            return x # set children [openButtonLoading]
-                        _ -> return x # set children [textLoading]
+                            return x # set children [Translation._open transLoading]
+                        _ -> return x # set children [Translation._text transLoading]
                 Data.Failure _ -> do
                     case (tm, pmError) of
                         (Translation.Translating, Popup.Open) -> do
-                            i <- element inputError
-                            return x # set children [i, closeButtonError]
+                            return x # set children [Translation._input transError, Translation._close transError]
                         (Translation.Translating, Popup.Closed) ->
-                            return x # set children [openButtonError]
-                        _ -> return x # set children [textError]
+                            return x # set children [Translation._open transError]
+                        _ -> return x # set children [Translation._text transError]
                 Data.Data (d, s, z) -> do -- wierd
                     case s of
                         Dropdown.Open -> do
@@ -140,11 +130,11 @@ photographersTab bTranslations bTransMode bPhotographers = do
 
 
     _container <- UI.div
-        # sink state ((,,,,) <$> bItem <*> bTransMode <*> (facts bPopModeError) <*>(facts bPopModeLoading) <*> (facts bPopModeNotAsked))
+        # sink state ((,,,,) <$> bItem <*> bTransMode <*> (facts (Translation._tPopup transError)) <*> (facts (Translation._tPopup transLoading)) <*> (facts (Translation._tPopup  transNotAsked)))
 
-    let _eH2 = (rumors $ Entry.userText inputLoading, loadingTrans)
-    let _eH3 = (rumors $ Entry.userText inputNotAsked, notAskedTrans)
-    let _eH1 = (rumors $ Entry.userText inputError, errorTrans)
+    let _eH2 = (Translation._eInput transLoading, Translation._bKey transLoading)
+    let _eH3 = (Translation._eInput transNotAsked, Translation._bKey transNotAsked)
+    let _eH1 = (Translation._eInput transError, Translation._bKey transError)
 
     return PhotographersTab { .. }
 

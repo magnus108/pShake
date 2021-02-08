@@ -1,8 +1,8 @@
 {-# LANGUAGE RecursiveDo #-}
 module Lib.Client.Pop.Popup2
-    ( popup
-    , Mode(..)
-    , popup2
+    ( Mode(..)
+    , popup
+    , PopupEntry(..)
     )
 where
 
@@ -32,31 +32,19 @@ switch :: Mode -> Mode
 switch Open = Closed
 switch Closed = Open
 
-popup :: Behavior String -> Behavior String -> UI ((Element,Element), Tidings Mode)
-popup open close = mdo
-    _buttonOpen <- UI.button #. "button" # sink text open
-    _buttonClose <- UI.button #. "button" # sink text close
+data PopupEntry = PopupEntry
+    { _close :: Element
+    , _open :: Element
+    , _tPopup :: Tidings Mode
+    }
 
-    let _eOpen = bMode <@ UI.click _buttonOpen
-    let _eClose = bMode <@ UI.click _buttonClose
+popup :: Behavior String -> Behavior String -> UI PopupEntry
+popup bOpen bClose = mdo
+    _open <- UI.button #. "button" # sink text bOpen
+    _close <- UI.button #. "button" # sink text bClose
 
-    let _e = Unsafe.head <$> unions
-            [ _eClose
-            , _eOpen
-            ]
-
-    bMode <- stepper Closed $ switch <$> _e
-
-    return ((_buttonClose, _buttonOpen), tidings bMode _e)
-
-
-popup2 :: Behavior String -> Behavior String -> UI ((Element,Element), Tidings Mode)
-popup2 bOpen bClose = mdo
-    open <- UI.button #. "button" # sink text bOpen
-    close <- UI.button #. "button" # sink text bClose
-
-    let eOpen = bMode <@ UI.click open
-    let eClose = bMode <@ UI.click close
+    let eOpen = bMode <@ UI.click _open
+    let eClose = bMode <@ UI.click _close
 
     let eClick = Unsafe.head <$> unions
             [ eClose
@@ -65,6 +53,6 @@ popup2 bOpen bClose = mdo
 
     bMode <- stepper Closed $ switch <$> eClick
 
-    let tMode = tidings bMode eClick
+    let _tPopup = tidings bMode eClick
 
-    return ((close, open), tMode)
+    return PopupEntry { .. }

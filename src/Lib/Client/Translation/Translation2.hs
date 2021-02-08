@@ -3,12 +3,13 @@ module Lib.Client.Translation.Translation2
     ( Translations
     , Mode(..)
     , toggle
-    , translation2
+    , translation
+    , TranslationEntry(..)
     )
 where
 
 import qualified Lib.Model.Data                as Data
-import qualified Lib.Client.Input.Text as Entry
+import qualified Lib.Client.Input.Text         as Entry
 import qualified Lib.Client.Pop.Popup2         as Popup
 
 import qualified Relude.Unsafe                 as Unsafe
@@ -40,22 +41,37 @@ toggle Normal      = Translating
 
 type Translations = HashMap String String
 
+data TranslationEntry = TranslationEntry
+    { _text :: Element
+    , _close :: Element
+    , _open :: Element
+    , _input :: Element
+    , _eInput :: Event String
+    , _bKey :: Behavior String
+    , _tPopup :: Tidings Popup.Mode
+    }
 
-translation2
+translation
     :: Behavior Translations
     -> Behavior Mode
     -> Behavior String
-    -> UI ((Element, Element, Element, Entry.TextEntry), Tidings Popup.Mode)
-translation2 bTranslations bMode bKey = mdo
+    -> UI TranslationEntry
+translation bTranslations bMode _bKey = mdo
 
-    ((close, open), tPopup) <- Popup.popup2 bOpen bClose
+    popup <- Popup.popup bOpen bClose
+    let _close = Popup._close popup
+    let _open = Popup._open popup
+    let _tPopup = Popup._tPopup popup
 
-    text' <- UI.span # sink text bText
-    input <- Entry.entry bTranslate
+    _text                      <- UI.span # sink text bText
+    input                      <- Entry.entry bTranslate
 
-    let bText = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
-    let bOpen  = (\s -> ("{{" ++ s ++ "}}")) <$> bKey
-    let bClose = HashMap.lookupDefault "close" "close" <$> bTranslations
-    let bTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
+    let bText = (\k -> HashMap.lookupDefault k k) <$> _bKey <*> bTranslations
+    let bOpen      = (\s -> ("{{" ++ s ++ "}}")) <$> _bKey
+    let bClose     = HashMap.lookupDefault "close" "close" <$> bTranslations
+    let bTranslate = HashMap.lookupDefault "" <$> _bKey <*> bTranslations
 
-    return ((text', close, open, input), tPopup)
+    let _eInput    = rumors (Entry.userText input)
+    _input <- element input
+
+    return TranslationEntry { .. }
