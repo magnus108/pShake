@@ -45,6 +45,7 @@ sessionsTab
     -> UI SessionsTab
 sessionsTab bTranslations bMode bSessions = mdo
 
+    {-
     let
         bDisplay = pure $ \s b x -> do
             text <- UI.span # set text (show x)
@@ -57,12 +58,15 @@ sessionsTab bTranslations bMode bSessions = mdo
     sessions <- Dropdown.dropdown
         (fmap (Lens.view Session.unSessions) <$> bSessions)
         bDisplay
+        -}
 
-    let _selection =
+    let _selection = UI.never
+            {-
             filterJust
                 $   Data.toJust
                 <$> fmap Session.Sessions
                 <$> (Dropdown._selection sessions)
-    _container <- element sessions
+                -}
+    _container <- UI.div --element sessions
 
     return SessionsTab { .. }

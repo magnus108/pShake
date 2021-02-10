@@ -43,7 +43,7 @@ instance Widget DumpTab where
 dumpTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String Dump.Dump) -> UI DumpTab
 dumpTab bTranslations bMode bDump = mdo
 
-    fallback <- Translation.translation bTranslations bMode (pure "pick")
+    fallback <- Translation.translation bTranslations (pure "pick")
     let eFallback = UI.div --Translation._translation fallback
 
     let display = pure $ \x -> UI.string x

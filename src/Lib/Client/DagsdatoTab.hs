@@ -43,7 +43,7 @@ instance Widget DagsdatoTab where
 dagsdatoTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String Dagsdato.Dagsdato) -> UI DagsdatoTab
 dagsdatoTab bTranslations bMode bDagsdato = mdo
 
-    fallback <- Translation.translation bTranslations bMode (pure "pick")
+    fallback <- Translation.translation bTranslations (pure "pick")
     let eFallback = UI.div --Translation._translation fallback
 
     let bDisplay = pure $ \x -> UI.string x

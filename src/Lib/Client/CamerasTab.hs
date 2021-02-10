@@ -45,6 +45,7 @@ camerasTab
     -> UI CamerasTab
 camerasTab bTranslations bMode bCameras = mdo
 
+    {-
     let
         bDisplay = pure $ \s b x -> do
             text <- UI.span # set text (show x)
@@ -57,12 +58,15 @@ camerasTab bTranslations bMode bCameras = mdo
     cameras <- Dropdown.dropdown
         (fmap (Lens.view Camera.unCameras) <$> bCameras)
         bDisplay
+        -}
 
-    let _selection =
+    let _selection = UI.never
+            {-
             filterJust
                 $   Data.toJust
                 <$> fmap Camera.Cameras
                 <$> (Dropdown._selection cameras)
-    _container <- element cameras
+                -}
+    _container <- UI.div --element cameras
 
     return CamerasTab { .. }

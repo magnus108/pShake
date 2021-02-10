@@ -41,7 +41,6 @@ library
       Lib.Client.Picker.Picker
       Lib.Client.Pop.Popup
       Lib.Client.Select.Dropdown
-      Lib.Client.Select.Dropdown2
       Lib.Client.Select.Select
       Lib.Client.SessionsTab
       Lib.Client.ShootingsTab

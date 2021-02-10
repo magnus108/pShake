@@ -1,9 +1,15 @@
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ApplicativeDo #-}
 module Lib.Client.Select.Dropdown
-    ( Dropdown(..)
-    , dropdown
+    ( dropdown2
+    , dropdown3
+    , Mode(..)
     )
 where
+
+
+import qualified Lib.Client.Translation.Translation as Translation
 import qualified Lib.Client.Select.Select      as Select
 import qualified Lib.Model.Data                as Data
 import           Prelude                 hiding ( get )
@@ -23,65 +29,80 @@ import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
 
-data Dropdown a = Dropdown
-    { _container :: Element
-    , _selection :: Event (Data.Data String (ListZipper.ListZipper a))
-    }
+data Mode
+    = Closed
+    | Open
+    deriving (Eq, Show)
 
-instance Widget (Dropdown a) where
-    getElement = _container
+switch :: Mode -> Mode
+switch Open = Closed
+switch Closed = Open
 
 
-dropdown
-    :: (Show a, Eq a)
-    => Behavior (Data.Data String (ListZipper.ListZipper a))
-    -> Behavior (Bool -> Bool -> a -> UI Element)
-    -> UI (Dropdown a)
-dropdown bZipper bDisplay = mdo
+dropdown2 :: Eq a => Behavior Translation.Translations 
+    -> Behavior Translation.Mode
+    -> Behavior (a -> UI Element)
+    -> Behavior (Bool -> a -> UI Element)
+    -> UI (Element, Behavior (ListZipper.ListZipper a -> [UI Element]), Behavior (ListZipper.ListZipper a -> [UI Element]), Tidings Mode,
+            Event (Data.Data String (ListZipper.ListZipper a)))
+dropdown2 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
 
-    (_selection, _handleSelection) <- liftIO $ newEvent
-    (_pop      , _handlePop      ) <- liftIO $ newEvent
+    opened   <- UI.div #. "buttons has-addons"
 
-    _container                     <- UI.div #. "buttons has-addons"
+    (eSelection, hSelection) <- liftIO $ newEvent
+    (ePopup , hPopup      ) <- liftIO $ newEvent
 
-    bState                         <- stepper False $ Unsafe.head <$> unions
-        [fmap not (bState <@ _selection), fmap not (bState <@ _pop)]
+    let eSwitch = switch <$> Unsafe.head <$> unions
+            [ bDropMode <@ eSelection
+            , bDropMode <@ ePopup
+            ]
 
-    let bDisplay' = bDisplay <&> \f h s b (zipper :: ListZipper.ListZipper a) -> do
-            display <- f s b (extract zipper)
+    bDropMode <- stepper Closed $ eSwitch
+    let tDropMode = tidings bDropMode eSwitch
+
+    let bDisplayOpen' = bDisplayOpen <&> \f b (zipper :: ListZipper.ListZipper a) -> do
+            display <- f b (extract zipper)
 
             UI.on UI.click display $ \_ -> do
-                liftIO $ h (Data.Data zipper)
+                liftIO $ hSelection (Data.Data zipper)
 
             return $ display
 
-    let view =
-            (\display'' state' zipper' -> fmap
-                    (\item -> if state'
-                        then ListZipper.toList
-                            (ListZipper.bextend (display'' _handleSelection state') item)
-                        else [display'' _handlePop state' False item]
-                    )
-                    zipper'
-                )
-                <$> bDisplay'
-                <*> bState
-                <*> bZipper
+    let bDisplayClosed' = bDisplayClosed <&> \f (zipper :: ListZipper.ListZipper a) -> do
+            display <- f (extract zipper)
+
+            UI.on UI.click display $ \_ -> do
+                liftIO $ hPopup ()
+
+            return $ display
+
+    let bDisplayOpen'' = (\f z -> ListZipper.toList (ListZipper.bextend f z)) <$> bDisplayOpen'
+    let bDisplayClosed'' = (\f z -> [f z]) <$> bDisplayClosed'
+
+    return $ (opened, bDisplayClosed'', bDisplayOpen'', tDropMode, eSelection)
 
 
-    _ <- element _container # sink items view
+dropdown3 :: Eq a => Behavior Translation.Translations 
+    -> Behavior Translation.Mode
+    -> Behavior (a -> UI Element)
+    -> Behavior (Bool -> a -> UI Element)
+    -> UI (Element, Behavior (Element -> ListZipper.ListZipper a -> UI Element), Event (Data.Data String (ListZipper.ListZipper a)))
+dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
+    (opened, bViewClosed, bViewOpen,  tDropMode, eSelection) <- dropdown2
+        bTranslations
+        bTransMode
+        bDisplayClosed
+        bDisplayOpen
 
-    return Dropdown { .. }
+    let bView = do
+            viewClose <- bViewClosed
+            viewOpen <- bViewOpen
+            dropMode <- facts tDropMode
+            return $ \elem zipper ->
+                        case dropMode of
+                                Open -> do
+                                    return elem # set children [] #+ [element opened # set children [] #+ (viewOpen zipper)]
+                                Closed -> do
+                                    return elem # set children [] #+ (viewClose zipper)
 
-
-items :: WriteAttr Element (Data.Data String [UI Element])
-items = mkWriteAttr $ \i x -> void $ do
-    case i of
-        Data.NotAsked  -> return x # set text "Not Asked"
-        Data.Loading   -> return x # set text "bobo"
-        Data.Failure e -> do
-            err <- string (show e)
-            return x # set children [] #+ [element err]
-        Data.Data item -> do
-            return x # set children [] #+ item
-
+    return (opened, bView, eSelection)

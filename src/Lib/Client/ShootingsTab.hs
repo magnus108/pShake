@@ -45,6 +45,7 @@ shootingsTab
     -> UI ShootingsTab
 shootingsTab bTranslations bMode bShootings = mdo
 
+    {-
     let
         bDisplay = pure $ \s b x -> do
             text <- UI.span # set text (show x)
@@ -54,15 +55,17 @@ shootingsTab bTranslations bMode bShootings = mdo
                 #. (b ?<> "is-info is-seleceted" <> " " <> "button")
                 #+ fmap element ([text] <> not s ?<> [icon])
 
+
     shootings <- Dropdown.dropdown
         (fmap (Lens.view Shooting.unShootings) <$> bShootings)
         bDisplay
+        -}
 
-    let _selection =
-            filterJust
-                $   Data.toJust
-                <$> fmap Shooting.Shootings
-                <$> (Dropdown._selection shootings)
-    _container <- element shootings
+    let _selection = UI.never
+            --filterJust
+             --   $   Data.toJust
+              --  <$> fmap Shooting.Shootings
+               -- <$> (Dropdown._selection shootings)
+    _container <- UI.div --element shootings
 
     return ShootingsTab { .. }

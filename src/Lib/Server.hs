@@ -1367,7 +1367,6 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let
             bDisplay = pure $ \x -> do
                         trans <- Translation.translation bTranslations
-                                                        bMode
                                                         (pure (show x))
                         --element trans
                         UI.div
@@ -1377,7 +1376,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
 
 
-        fallback <- Translation.translation bTranslations bMode (pure "pick")
+        fallback <- Translation.translation bTranslations (pure "pick")
 
         selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> UI.div )--(element fallback))
     

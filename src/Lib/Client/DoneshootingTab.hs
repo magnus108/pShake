@@ -43,7 +43,7 @@ instance Widget DoneshootingTab where
 doneshootingTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String Doneshooting.Doneshooting) -> UI DoneshootingTab
 doneshootingTab bTranslations bMode bDoneshooting = mdo
 
-    fallback <- Translation.translation bTranslations bMode (pure "pick")
+    fallback <- Translation.translation bTranslations (pure "pick")
     let eFallback = UI.div -- Translation._translation fallback
 
     let display = pure $ \x -> UI.string x
