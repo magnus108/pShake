@@ -40,9 +40,9 @@ import           Control.Lens                   ( (^.)
 data PhotographersTab = PhotographersTab
     { _container :: Element
     , _selection :: Event Photographer.Photographers
-    , _eH3 :: (Event String, Behavior String)
-    , _eH2 :: (Event String, Behavior String)
-    , _eH1 :: (Event String, Behavior String)
+    , _eTransNotAsked :: (Event String, Behavior String)
+    , _eTransLoading :: (Event String, Behavior String)
+    , _eTransError :: (Event String, Behavior String)
     }
 
 instance Widget PhotographersTab where
@@ -72,33 +72,17 @@ photographersTab bTranslations bTransMode bPhotographers = do
                         #. "button"
                         #+ fmap element [text, icon]
 
-    (errorView, _eH1) <- Translation.translation2 bTranslations bTransMode (pure "error")
-    (loadingView, _eH2) <- Translation.translation2 bTranslations bTransMode (pure "loading")
-    (notAskedView, _eH3) <- Translation.translation2 bTranslations bTransMode (pure "notAsked")
+    (errorView, _eTransError) <- Translation.translation2 bTranslations bTransMode (pure "error")
+    (loadingView, _eTransLoading) <- Translation.translation2 bTranslations bTransMode (pure "loading")
+    (notAskedView, _eTransNotAsked) <- Translation.translation2 bTranslations bTransMode (pure "notAsked")
+    (opened, bView, eSelection) <- Dropdown.dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen
 
-    (opened, bView, eSelection) <- Dropdown.dropdown3
-        bTranslations
-        bTransMode
-        bDisplayClosed
-        bDisplayOpen
+    _container <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> bView <*> bZipper)
 
-
-    let
-        state = mkWriteAttr $ \(data', view, error', loading, notAsked) x -> void $ do
-            case data' of
-                Data.NotAsked -> notAsked x
-                Data.Loading -> loading x
-                Data.Failure _ -> error' x
-                Data.Data zipper -> view x zipper
-
-
-    _container <- UI.div
-        # sink state ((,,,,) <$> bZipper <*> bView <*> errorView <*> loadingView <*> notAskedView)
-
-    let _selection =
-            filterJust
-                $   Data.toJust
-                <$> fmap Photographer.Photographers
-                <$> eSelection
+    let _selection = fmap Photographer.Photographers $ filterJust $ Data.toJust <$> eSelection
 
     return PhotographersTab { .. }
+
+
+items = mkWriteAttr $ \i x -> void $ do
+    return x # set children [] #+ i

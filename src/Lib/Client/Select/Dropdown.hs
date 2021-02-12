@@ -86,7 +86,7 @@ dropdown3 :: Eq a => Behavior Translation.Translations
     -> Behavior Translation.Mode
     -> Behavior (a -> UI Element)
     -> Behavior (Bool -> a -> UI Element)
-    -> UI (Element, Behavior (Element -> ListZipper.ListZipper a -> UI Element), Event (Data.Data String (ListZipper.ListZipper a)))
+    -> UI (Element, Behavior (ListZipper.ListZipper a -> [UI Element]), Event (Data.Data String (ListZipper.ListZipper a)))
 dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
     (opened, bViewClosed, bViewOpen,  tDropMode, eSelection) <- dropdown2
         bTranslations
@@ -98,11 +98,11 @@ dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
             viewClose <- bViewClosed
             viewOpen <- bViewOpen
             dropMode <- facts tDropMode
-            return $ \elem zipper ->
+            return $ \zipper ->
                         case dropMode of
                                 Open -> do
-                                    return elem # set children [] #+ [element opened # set children [] #+ (viewOpen zipper)]
+                                    [element opened # set children [] #+ (viewOpen zipper)]
                                 Closed -> do
-                                    return elem # set children [] #+ (viewClose zipper)
+                                    viewClose zipper
 
     return (opened, bView, eSelection)

@@ -41,6 +41,12 @@ dependencies:
 - directory >= 1.3 && < 1.4
 - ilist >= 0.4 && < 0.5
 - cond >= 0.4 && < 0.5
+- servant >= 0.16 && < 0.19
+- servant-docs >= 0.11 && < 0.12
+- servant-client >= 0.16 && < 0.19
+- servant-server >= 0.16 && < 0.19
+- servant-conduit >= 0.15 && < 0.19
+- http-client >= 0.6 && < 0.7
 
 default-extensions:
 - BangPatterns

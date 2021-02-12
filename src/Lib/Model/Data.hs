@@ -3,6 +3,7 @@ module Lib.Model.Data
     ( Data(..)
     , toJust
     , data'
+    , data''
     )
 where
 
@@ -51,3 +52,10 @@ data' _ _ _ g (Data s) = g s
 data' _ _ f _ (Failure e) = f e
 data' _ d _ _ Loading = d
 data' d _ _ _ NotAsked = d
+
+
+data'' :: d -> d -> d -> (s -> d) -> (Data e s) -> d
+data'' _ _ _ g (Data s) = g s
+data'' _ _ d _ (Failure e) = d
+data'' _ d _ _ Loading = d
+data'' d _ _ _ NotAsked = d

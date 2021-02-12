@@ -3,7 +3,13 @@ module Lib.Server
     ( setup
     )
 where
+import Servant.Docs
+  ( markdown,
+  )
 
+import Network.HTTP.Client (newManager, defaultManagerSettings)
+import           Servant.Client
+import Lib.Stream
 import qualified Lib.Client.Input.Text as TextEntry
 import qualified Lib.Client.Pop.Popup as Popup
 import Control.Conditional ((?<>))
@@ -1407,9 +1413,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
                     (HashMap.fromList
                         [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
                     )
-                $ Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH1 photographers) <@> (fst $ PhotographersTab._eH1 photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH2 photographers) <@> (fst $ PhotographersTab._eH2 photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eH3 photographers) <@> (fst $ PhotographersTab._eH3 photographers)
+                $ Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransError photographers) <@> (fst $ PhotographersTab._eTransError photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransLoading photographers) <@> (fst $ PhotographersTab._eTransLoading photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransNotAsked photographers) <@> (fst $ PhotographersTab._eTransNotAsked photographers)
                                          ]
 
         let tTranslations = tidings bTranslations' UI.never
@@ -1575,9 +1581,27 @@ example options callback = ffi
     callback
     options
 
+
+
+
 setup :: AppEnv -> Window -> UI ()
 setup env@Env {..} win = mdo
+
+    {-
+    _ <- liftIO $ (writeFile "docs.md" . markdown) streamDocs
+
+    baseUrl <- liftIO $ parseBaseUrl "http://localhost"
+    manager <- liftIO $ newManager defaultManagerSettings
+    let clientEnv = mkClientEnv manager (baseUrl { baseUrlPort = 9000 })
+
+    _ <- liftIO $ printSourceIO clientEnv photographersStream
+    -}
+
+
+
+
     _ <- return win # set title "FF"
+
 
     (elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
         tabsBox bTabs

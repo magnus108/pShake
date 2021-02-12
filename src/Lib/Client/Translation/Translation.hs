@@ -81,19 +81,19 @@ translation2
     :: Behavior Translations
     -> Behavior Mode
     -> Behavior String
-    -> UI (Behavior (Element -> UI Element), (Event String, Behavior String))
+    -> UI (Behavior [UI Element], (Event String, Behavior String))
 translation2 bTranslations bTransMode bKey = mdo
     trans <- translation bTranslations bKey
 
     let bView = do
             transMode <- bTransMode
             popupMode <- facts (_tPopup trans)
-            return $ \x -> case (transMode, popupMode) of
+            return $ fmap element $ case (transMode, popupMode) of
                     (Translating, Popup.Open) -> do
-                        return x # set children [_input trans, _close trans]
+                        [_input trans, _close trans]
                     (Translating, Popup.Closed) ->
-                        return x # set children [_open trans]
-                    _ -> return x # set children [_text trans]
+                        [_open trans]
+                    _ -> [_text trans]
 
     let keyValue = (_eInput trans, bKey)
 
