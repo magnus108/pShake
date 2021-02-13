@@ -44,6 +44,7 @@ library
       Lib.Client.Select.Select
       Lib.Client.SessionsTab
       Lib.Client.ShootingsTab
+      Lib.Client.Tabs
       Lib.Client.Translation.Translation
       Lib.Config
       Lib.Message

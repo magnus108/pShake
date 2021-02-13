@@ -144,8 +144,16 @@ iextend :: (Int -> ListZipper a -> b) -> ListZipper a -> ListZipper b
 iextend f = fmap (\xs@(ListZipper ls _ _) -> f (length ls) xs) . duplicate
 
 
-bextend :: Eq a => (Bool -> ListZipper a -> b) -> ListZipper a -> ListZipper b 
-bextend f s = fmap (\xs@(ListZipper ls x _) -> f (extract s == x) xs) (duplicate s)
+
+bextend :: (Bool -> ListZipper a -> b) -> ListZipper a -> ListZipper b 
+bextend f l = 
+    let 
+        (ListZipper xs y ys) = extend (f False) l
+        y' = f True (ListZipper [] (extract l) [])
+        l' = ListZipper xs y' ys
+    in
+        l'
+
 
 --move me
 insert' :: Ord a => a -> [a] -> [a]

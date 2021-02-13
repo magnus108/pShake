@@ -31,6 +31,7 @@ import qualified Lib.Client.PhotographersTab   as PhotographersTab
 import qualified Lib.Client.CamerasTab         as CamerasTab
 import qualified Lib.Client.ShootingsTab       as ShootingsTab
 import qualified Lib.Client.SessionsTab       as SessionsTab
+import qualified Lib.Client.Tabs       as ClientTabs
 
 import qualified Foreign.JavaScript            as JavaScript
 import           System.IO.Error                ( IOError
@@ -1349,44 +1350,64 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         _ss        <- UI.div
 
 
+        photographers <- PhotographersTab.photographersTab (facts tTranslations)
+                                                           (facts tMode)
+                                                           bPhotographers
+
+
+        -----------------------------------------------------------------------
+        let tabsy = [ Tab.DumpTab
+                , Tab.DagsdatoTab
+                , Tab.DagsdatoBackupTab
+                , Tab.DoneshootingTab
+                , Tab.DoneshootingBackupTab
+                , Tab.PhotographersTab
+                , Tab.CamerasTab
+                , Tab.ShootingsTab
+                , Tab.SessionsTab
+                , Tab.LocationTab
+                , Tab.MainTab
+                , Tab.InsertPhotographeeTab
+                , Tab.ControlTab
+                ]
+
+    --
+    -- x == (key, bview, (evalue, bkey))
+        transTABS <- mapM (\t -> do
+            translation <- Translation.translation2 bTranslations bMode (pure (show t))
+            return (t, translation)
+            ) tabsy
+
+        let kv = transTABS <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd item) <@> (fst item))
+        -----------------------------------------------------------------------
+
 
         switchMode <- UI.button #. "button" # set text "skift"
-
         let eSwitchMode = UI.click switchMode
-
         bMode <-
             stepper Translation.Normal
             $   Translation.toggle
             <$> bMode
             <@  eSwitchMode
+        let tMode = tidings bMode (bMode <@ eSwitchMode)
 
 
-
+        let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransError photographers) <@> (fst $ PhotographersTab._eTransError photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransLoading photographers) <@> (fst $ PhotographersTab._eTransLoading photographers)
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransNotAsked photographers) <@> (fst $ PhotographersTab._eTransNotAsked photographers)
+                                         ]<>kv)
         bTranslations <-
             stepper
                     (HashMap.fromList
                         [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
                     )
-                $ UI.never -- Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> bKey <@> UI.rumors eTest ]
+                $ eTranslation
+
+        let tTranslations = tidings bTranslations eTranslation
 
 
-        let
-            bDisplay = pure $ \x -> do
-                        trans <- Translation.translation bTranslations
-                                                        (pure (show x))
-                        --element trans
-                        UI.div
-
-
-
-        let bZipper = fmap (Lens.view Tab.unTabs) <$> bTabs
-
-
-        fallback <- Translation.translation bTranslations (pure "pick")
-
-        selectors <- Select.select bTranslations bMode bZipper bDisplay (pure $ \_ -> UI.div )--(element fallback))
-    
-        let eSelection = Select._selection selectors
+        tabs <- ClientTabs.tabs (facts tTranslations) (facts tMode) transTABS bTabs 
+        let eSelection = ClientTabs._selection tabs
 
 
 
@@ -1395,30 +1416,16 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
 
-        bMode' <-
-            stepper Translation.Normal
-            $   Translation.toggle
-            <$> bMode'
-            <@  eSwitchMode
-
-        let tMode = tidings bMode' (bMode' <@ eSwitchMode)
 
 
-        photographers <- PhotographersTab.photographersTab (facts tTranslations)
-                                                           (facts tMode)
-                                                           bPhotographers
 
-        bTranslations' <-
-            stepper
-                    (HashMap.fromList
-                        [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
-                    )
-                $ Unsafe.head <$> unions [ (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransError photographers) <@> (fst $ PhotographersTab._eTransError photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransLoading photographers) <@> (fst $ PhotographersTab._eTransLoading photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations' <*> (snd $ PhotographersTab._eTransNotAsked photographers) <@> (fst $ PhotographersTab._eTransNotAsked photographers)
-                                         ]
 
-        let tTranslations = tidings bTranslations' UI.never
+
+
+
+
+
+
 
 
         shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings
@@ -1465,11 +1472,11 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
 
-        menu <- element selectors
+        menu <- element tabs
         element _tabsE # set children [menu, _ss, switchMode]
 
 
-        let _tabsPB = filterJust $ Data.toJust <$> fmap Tab.Tabs <$> eSelection
+        let _tabsPB = eSelection
         let _eDump           = DumpTab._selection elemDump
         let _eDagsdato       = DagsdatoTab._selection elemDagsdato
         let _eDagsdatoBackup = DagsdatoBackupTab._selection elemDagsdatoBackup
