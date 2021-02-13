@@ -149,7 +149,7 @@ bextend :: (Bool -> ListZipper a -> b) -> ListZipper a -> ListZipper b
 bextend f l = 
     let 
         (ListZipper xs y ys) = extend (f False) l
-        y' = f True (ListZipper [] (extract l) [])
+        (ListZipper xs' y' ys') = extend (f True) l
         l' = ListZipper xs y' ys
     in
         l'
