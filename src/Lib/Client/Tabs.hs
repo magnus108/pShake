@@ -80,7 +80,12 @@ tabs bTranslations bTransMode translations bTabs = do
 
                 return $ display
 
-    let bDisplay'' = (\f z -> ListZipper.toList (ListZipper.bextend f z)) <$> bDisplay
+    let bDisplay'' = (\f mode z -> case mode of
+                            Translation.Translating ->
+                                [UI.div #+ (concat (fmap snd (ListZipper.toList z)))]
+                            Translation.Normal -> do
+                                [UI.div #. "buttons has-addons" #+ ListZipper.toList (ListZipper.bextend f z)]
+                     ) <$> bDisplay <*> bTransMode
 
 
     (errorView, _eTransError) <- Translation.translation2 bTranslations
@@ -96,8 +101,8 @@ tabs bTranslations bTransMode translations bTabs = do
         bTransMode
         (pure "notAsked")
 
-
-    _container   <- UI.div #. "buttons has-addons" # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> bDisplay'' <*> ggMAX)
+--"buttons has-addons"
+    _container   <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> bDisplay'' <*> ggMAX)
 
     let _selection = fmap Tab.Tabs $ filterJust $ Data.toJust <$> eSelection
 

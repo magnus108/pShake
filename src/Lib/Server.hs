@@ -1350,9 +1350,11 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         _ss        <- UI.div
 
 
-        photographers <- PhotographersTab.photographersTab (facts tTranslations)
-                                                           (facts tMode)
-                                                           bPhotographers
+        (errorView, _eTransError) <- Translation.translation2 bTranslations bMode (pure "error")
+        (loadingView, _eTransLoading) <- Translation.translation2 bTranslations bMode (pure "loading")
+        (notAskedView, _eTransNotAsked) <- Translation.translation2 bTranslations bMode (pure "notAsked")
+
+        photographers <- PhotographersTab.photographersTab errorView loadingView notAskedView bPhotographers
 
 
         -----------------------------------------------------------------------
@@ -1392,9 +1394,9 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let tMode = tidings bMode (bMode <@ eSwitchMode)
 
 
-        let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransError photographers) <@> (fst $ PhotographersTab._eTransError photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransLoading photographers) <@> (fst $ PhotographersTab._eTransLoading photographers)
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ PhotographersTab._eTransNotAsked photographers) <@> (fst $ PhotographersTab._eTransNotAsked photographers)
+        let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
+                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
                                          ]<>kv)
         bTranslations <-
             stepper
@@ -1473,7 +1475,25 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
 
         menu <- element tabs
-        element _tabsE # set children [menu, _ss, switchMode]
+
+        window <- askWindow
+
+        liftIOLater $ runUI window $ do
+            s <- currentValue bPhotographers
+            forM_ s $ \s' -> do
+                let photographers = Lens.view Photographer.unPhotographers s'
+                if (ListZipper.isLeft photographers) then
+                    element _tabsE # set children [menu, _ss, switchMode]
+                else
+                    element _tabsE # set children [menu, _ss]
+
+        liftIOLater $ Reactive.onChange bPhotographers $ \s -> runUI window $ do
+            forM_ s $ \s' -> do
+                let photographers = Lens.view Photographer.unPhotographers s'
+                if (ListZipper.isLeft photographers) then
+                    element _tabsE # set children [menu, _ss, switchMode]
+                else
+                    element _tabsE # set children [menu, _ss]
 
 
         let _tabsPB = eSelection

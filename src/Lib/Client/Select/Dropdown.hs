@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ApplicativeDo #-}
 module Lib.Client.Select.Dropdown
-    ( dropdown2
+    ( dropdown
     , dropdown3
     , Mode(..)
     )
@@ -39,13 +39,9 @@ switch Open = Closed
 switch Closed = Open
 
 
-dropdown2 :: Eq a => Behavior Translation.Translations 
-    -> Behavior Translation.Mode
-    -> Behavior (a -> UI Element)
-    -> Behavior (Bool -> a -> UI Element)
-    -> UI (Element, Behavior (ListZipper.ListZipper a -> [UI Element]), Behavior (ListZipper.ListZipper a -> [UI Element]), Tidings Mode,
-            Event (Data.Data String (ListZipper.ListZipper a)))
-dropdown2 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
+dropdown :: Behavior (a -> UI Element) -> Behavior (Bool -> a -> UI Element) 
+    -> UI (Element, Behavior (ListZipper.ListZipper a -> [UI Element]), Behavior (ListZipper.ListZipper a -> [UI Element]), Tidings Mode, Event (Data.Data String (ListZipper.ListZipper a)))
+dropdown bDisplayClosed bDisplayOpen = mdo
 
     opened   <- UI.div #. "buttons has-addons"
 
@@ -82,15 +78,11 @@ dropdown2 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
     return $ (opened, bDisplayClosed'', bDisplayOpen'', tDropMode, eSelection)
 
 
-dropdown3 :: Eq a => Behavior Translation.Translations 
-    -> Behavior Translation.Mode
-    -> Behavior (a -> UI Element)
+dropdown3 :: Behavior (a -> UI Element)
     -> Behavior (Bool -> a -> UI Element)
     -> UI (Element, Behavior (ListZipper.ListZipper a -> [UI Element]), Event (Data.Data String (ListZipper.ListZipper a)))
-dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen = mdo
-    (opened, bViewClosed, bViewOpen,  tDropMode, eSelection) <- dropdown2
-        bTranslations
-        bTransMode
+dropdown3 bDisplayClosed bDisplayOpen = mdo
+    (opened, bViewClosed, bViewOpen,  tDropMode, eSelection) <- dropdown
         bDisplayClosed
         bDisplayOpen
 

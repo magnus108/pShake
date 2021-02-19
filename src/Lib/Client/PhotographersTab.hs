@@ -40,44 +40,75 @@ import           Control.Lens                   ( (^.)
 data PhotographersTab = PhotographersTab
     { _container :: Element
     , _selection :: Event Photographer.Photographers
-    , _eTransNotAsked :: (Event String, Behavior String)
-    , _eTransLoading :: (Event String, Behavior String)
-    , _eTransError :: (Event String, Behavior String)
     }
 
 instance Widget PhotographersTab where
     getElement = _container
 
 
-photographersTab
-    :: Behavior Translation.Translations
-    -> Behavior Translation.Mode
-    -> Behavior (Data.Data String Photographer.Photographers)
-    -> UI PhotographersTab
-photographersTab bTranslations bTransMode bPhotographers = do
+data Mode
+    = Closed
+    | Open
+    deriving (Eq, Show)
+
+switch :: Mode -> Mode
+switch Open = Closed
+switch Closed = Open
+
+
+photographersTab :: Behavior [UI Element] -> Behavior [UI Element] -> Behavior [UI Element] -> Behavior (Data.Data String Photographer.Photographers) -> UI PhotographersTab
+photographersTab errorView loadingView notAskedView bPhotographers = mdo
+
+    (eSelection, hSelection) <- liftIO $ newEvent
+    (ePopup , hPopup      ) <- liftIO $ newEvent
+
+    let eSwitch = switch <$> Unsafe.head <$> unions
+            [ bDropMode <@ eSelection
+            , bDropMode <@ ePopup
+            ]
+
+    bDropMode <- stepper Closed $ eSwitch
 
     let bZipper = Lens.view Photographer.unPhotographers <<$>> bPhotographers
 
-    let bDisplayOpen = pure $ \center photographer -> do
-                text <- UI.span # set text (photographer ^. Photographer.name)
-                UI.button
+    let bDisplayOpen = pure $ \center photographers -> do
+                text <- UI.span # set text (extract photographers ^. Photographer.name)
+                display <- UI.button
                     #. (center ?<> "is-info is-seleceted" <> " " <> "button")
                     #+ fmap element [text]
 
-    let bDisplayClosed = pure $ \photographer -> do
-                    text <- UI.span # set text (photographer ^. Photographer.name)
+                UI.on UI.click display $ \_ -> do
+                    liftIO $ hSelection (Data.Data photographers)
+
+                return display
+
+
+    let bDisplayClosed = pure $ \photographers -> do
+                    text <- UI.span # set text (extract photographers ^. Photographer.name)
                     icon <-
                         UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
-                    UI.button
+                    display <- UI.button
                         #. "button"
                         #+ fmap element [text, icon]
 
-    (errorView, _eTransError) <- Translation.translation2 bTranslations bTransMode (pure "error")
-    (loadingView, _eTransLoading) <- Translation.translation2 bTranslations bTransMode (pure "loading")
-    (notAskedView, _eTransNotAsked) <- Translation.translation2 bTranslations bTransMode (pure "notAsked")
-    (opened, bView, eSelection) <- Dropdown.dropdown3 bTranslations bTransMode bDisplayClosed bDisplayOpen
+                    UI.on UI.click display $ \_ -> do
+                        liftIO $ hPopup ()
 
-    _container <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> bView <*> bZipper)
+                    return display
+
+    let finalDisplay = do
+            displayOpen <- bDisplayOpen
+            displayClosed <- bDisplayClosed
+            dropMode <- bDropMode
+            return $ \ zipper ->
+                case dropMode of
+                    Open -> do
+                        [UI.div #. "buttons has-addons" #+ ListZipper.toList (ListZipper.bextend displayOpen zipper)]
+                    Closed -> do
+                        [displayClosed zipper]
+
+
+    _container <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> finalDisplay <*> bZipper)
 
     let _selection = fmap Photographer.Photographers $ filterJust $ Data.toJust <$> eSelection
 
