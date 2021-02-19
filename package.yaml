@@ -47,6 +47,7 @@ dependencies:
 - servant-server >= 0.16 && < 0.19
 - servant-conduit >= 0.15 && < 0.19
 - http-client >= 0.6 && < 0.7
+- zip-archive >= 0.4 && < 0.5
 
 default-extensions:
 - BangPatterns

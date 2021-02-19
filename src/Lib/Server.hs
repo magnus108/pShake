@@ -130,6 +130,7 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Server.Download           as ServerDownload
 import qualified Lib.Server.Build              as ServerBuild
 import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.Grade               as Grade
@@ -1313,6 +1314,7 @@ data TabsBox a = TabsBox
     , _eCameras :: Event Camera.Cameras
     , _eShootings :: Event Shooting.Shootings
     , _eSessions :: Event Session.Sessions
+    , _eDownload :: Event ()
     }
 
 instance Widget (TabsBox a) where
@@ -1384,13 +1386,18 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         -----------------------------------------------------------------------
 
 
+        download <- UI.button #. "button" # set text "download"
         switchMode <- UI.button #. "button" # set text "skift"
+        extraMenu <- UI.div #. "buttons has-addons" # set children [download, switchMode]
+
         let eSwitchMode = UI.click switchMode
+
         bMode <-
             stepper Translation.Normal
             $   Translation.toggle
             <$> bMode
             <@  eSwitchMode
+
         let tMode = tidings bMode (bMode <@ eSwitchMode)
 
 
@@ -1483,7 +1490,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             forM_ s $ \s' -> do
                 let photographers = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers) then
-                    element _tabsE # set children [menu, _ss, switchMode]
+                    element _tabsE # set children [menu, _ss, extraMenu]
                 else
                     element _tabsE # set children [menu, _ss]
 
@@ -1491,7 +1498,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
             forM_ s $ \s' -> do
                 let photographers = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers) then
-                    element _tabsE # set children [menu, _ss, switchMode]
+                    element _tabsE # set children [menu, _ss, extraMenu]
                 else
                     element _tabsE # set children [menu, _ss]
 
@@ -1506,7 +1513,8 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let _eSessions = SessionsTab._selection sessions
         let _eDoneshooting = DoneshootingTab._selection doneshooting
 
-
+        let _eDownload = UI.click download
+        
         return
             ( elemLocation
             , elemGrades
@@ -1651,6 +1659,9 @@ setup env@Env {..} win = mdo
                 <$> (Data.toJust <$> bGrades)
                 <@> _photographeesSideTE elemPhotograheesInput2
 
+
+    _ <- onEvent (_eDownload elem3) $ \_ -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.RunDownload)
 
     _ <- onEvent eElemPhotographees2 $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
@@ -2498,6 +2509,20 @@ receiveMessages window = do
                                        traceShowM e
                                        traceShowM "wtf6"
                                    )
+
+            Message.RunDownload -> do
+                ServerDownload.runDownload
+                    `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+                    `E.catchError` (\e -> do
+                                       traceShowM e
+                                       traceShowM "wtf6"
+                                   )
+
 
 --------------------------------------------------------------------------------
 
