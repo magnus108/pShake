@@ -173,7 +173,7 @@ type WithChan r m
 
 nanosSinceEpoch :: UTCTime -> Integer
 nanosSinceEpoch =
-    floor . (1e9 *) . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
+    fromIntegral . floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
 
 runDownload :: forall  r m . WithChan r m => m ()
 runDownload = do
