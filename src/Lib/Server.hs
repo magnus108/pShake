@@ -1619,7 +1619,7 @@ example options callback = ffi
 
 example2 :: [String] -> JavaScript.JSObject -> JSFunction ()
 example2 options callback = ffi
-    "require('electron').remote.dialog.showSaveDialog().then(result => %1(result))"
+    "require('electron').remote.dialog.showSaveDialog().then(result => %1(result.filePath))"
     callback
     options
 
