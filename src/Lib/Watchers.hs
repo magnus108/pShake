@@ -13,6 +13,7 @@ module Lib.Watchers
     , camerasFile
     , locationFile
     , buildFile
+    , translationFile
     )
 where
 import           Control.Monad.Except           ( MonadError )
@@ -55,6 +56,7 @@ import           Lib.App                        ( grab
 
                                                 , MSessionsFile
                                                 , MShootingsFile
+                                                , MTranslationFile
                                                 , MCamerasFile
                                                 , MDumpFile
                                                 , MBuildFile
@@ -70,6 +72,8 @@ import           Lib.App                        ( grab
                                                 , unMPhotographersFile
                                                 , unMTabsFile
                                                 , unMBuildFile
+
+                                                , unMTranslationFile
 
                                                 , unMShootingsFile
                                                 , unMSessionsFile
@@ -112,6 +116,7 @@ type WithEnv r m = (MonadReader r m
   , MonadError AppError m
   , WithError m
 
+  , Has MTranslationFile r
   , Has MDagsdatoFile r
   , Has MDagsdatoBackupFile r
   , Has MDoneshootingFile r
@@ -122,6 +127,23 @@ type WithEnv r m = (MonadReader r m
   , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m,
     MonadCatch m, MonadThrow m)
 
+
+translationFile :: WithEnv r m => m FS.StopListening
+translationFile = do
+    unMTranslationFile <- unMTranslationFile <$> grab @MTranslationFile
+    file <- liftIO $ readMVar unMTranslationFile
+    watchManager <- unWatchManager <$> grab @WatchManager
+    inChan <- unInChan <$> grab @InChan
+    stop <- liftIO $ FS.watchDir
+        watchManager
+        (FP.dropFileName file)
+        (\e -> FP.takeFileName (FS.eventPath e) == file)
+        (\e -> void $ do
+            print e
+            Chan.writeChan inChan Message.ReadTranslation
+            return ()
+        )
+    return stop
 
 
 photographersFile :: WithEnv r m => m FS.StopListening

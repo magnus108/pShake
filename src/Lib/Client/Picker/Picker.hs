@@ -5,7 +5,8 @@ module Lib.Client.Picker.Picker
     )
 where
 
-import qualified Lib.Client.Translation.Translation as Translation
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Model.Data                as Data
 import           Control.Lens                   ( (^.)
@@ -30,7 +31,7 @@ instance Widget Picker where
     getElement = _container
 
 
-picker :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String FilePath) -> Behavior (FilePath -> UI Element) -> Behavior (String -> UI Element) -> UI Picker
+picker :: Behavior Translation.Translations -> Behavior ClientTranslation.Mode -> Behavior (Data.Data String FilePath) -> Behavior (FilePath -> UI Element) -> Behavior (String -> UI Element) -> UI Picker
 picker bTranslations bMode bItem bDisplay bFallBack = mdo
     _container <- UI.div
 

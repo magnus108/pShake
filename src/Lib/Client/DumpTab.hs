@@ -4,7 +4,9 @@ module Lib.Client.DumpTab
     , DumpTab(..)
     )
 where
-import qualified Lib.Client.Translation.Translation as Translation
+
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
@@ -40,10 +42,10 @@ data DumpTab = DumpTab
 instance Widget DumpTab where
     getElement = _container
 
-dumpTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String Dump.Dump) -> UI DumpTab
+dumpTab :: Behavior Translation.Translations -> Behavior ClientTranslation.Mode -> Behavior (Data.Data String Dump.Dump) -> UI DumpTab
 dumpTab bTranslations bMode bDump = mdo
 
-    fallback <- Translation.translation bTranslations (pure "pick")
+    fallback <- ClientTranslation.translation bTranslations (pure "pick")
     let eFallback = UI.div --Translation._translation fallback
 
     let display = pure $ \x -> UI.string x

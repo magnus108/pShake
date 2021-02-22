@@ -62,6 +62,7 @@ library
       Lib.Model.Session
       Lib.Model.Shooting
       Lib.Model.Tab
+      Lib.Model.Translation
       Lib.Server
       Lib.Server.Build
       Lib.Server.Download

@@ -6,6 +6,7 @@ where
 import           Lib.App                        ( AppEnv
                                                 , Env(..)
                                                 )
+import qualified Lib.Model.Translation as Translation
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 
@@ -77,7 +78,9 @@ mkAppEnv port Config.Config {..} = do
     mLocationFile' <- newMVar locationFile
     let mLocationFile = App.MLocationFile mLocationFile'
 
-    mTranslationFile  <- newMVar translationFile
+    mTranslationFile' <- newMVar translationFile
+    let mTranslationFile = App.MTranslationFile mTranslationFile'
+
     mPhotograheesFile <- newMVar photograheesFile
 
     mBuildFile'       <- newMVar buildFile
@@ -132,6 +135,9 @@ mkAppEnv port Config.Config {..} = do
     (eLocationFile, hLocationFile') <- Reactive.newEvent
     let hLocationFile = App.HLocationFile hLocationFile'
 
+    (eTranslationFile, hTranslationFile') <- Reactive.newEvent
+    let hTranslationFile = App.HTranslationFile hTranslationFile'
+
     (ePhotographees, hPhotographees) <- Reactive.newEvent
 
     (eBuild        , hBuild'       ) <- Reactive.newEvent
@@ -171,6 +177,8 @@ mkAppEnv port Config.Config {..} = do
     bLocationFile <- Reactive.stepper Location.initalState eLocationFile
 
     bGrades       <- Reactive.stepper Grade.initalState eGrades
+
+    bTranslations      <- Reactive.stepper Translation.initalState eTranslationFile
 
     pure Env { .. }
 

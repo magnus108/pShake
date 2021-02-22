@@ -6,8 +6,9 @@ module Lib.Client.Select.Select
 where
 
 import Control.Conditional ((?<>))
-import qualified Lib.Client.Translation.Translation
-                                               as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
+import qualified Lib.Model.Translation                as Translation
+
 import qualified Data.HashMap.Strict           as HashMap
 import qualified Lib.Model.Data                as Data
 import           Prelude                 hiding ( get )
@@ -40,7 +41,7 @@ instance Widget (Select a) where
 select
     :: (Show a, Eq a)
     => Behavior Translation.Translations
-    -> Behavior Translation.Mode
+    -> Behavior ClientTranslation.Mode
     -> Behavior (Data.Data String (ListZipper.ListZipper a))
     -> Behavior (a -> UI Element)
     -> Behavior (String -> UI Element)
@@ -62,7 +63,7 @@ select bTranslations bMode bZipper bDisplay bFallback = mdo
                         UI.on UI.click display $ \_ -> do
                             liftIO $ _handle (Data.Data zipper)
 
-                        return $ if m /= Translation.Normal then trans else display
+                        return $ if m /= ClientTranslation.Normal then trans else display
                     )
                 <$> bDisplay <*> bMode
 

@@ -4,7 +4,8 @@ module Lib.Client.DoneshootingTab
     , DoneshootingTab(..)
     )
 where
-import qualified Lib.Client.Translation.Translation as Translation
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
@@ -40,10 +41,10 @@ data DoneshootingTab = DoneshootingTab
 instance Widget DoneshootingTab where
     getElement = _container
 
-doneshootingTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String Doneshooting.Doneshooting) -> UI DoneshootingTab
+doneshootingTab :: Behavior Translation.Translations -> Behavior ClientTranslation.Mode -> Behavior (Data.Data String Doneshooting.Doneshooting) -> UI DoneshootingTab
 doneshootingTab bTranslations bMode bDoneshooting = mdo
 
-    fallback <- Translation.translation bTranslations (pure "pick")
+    fallback <- ClientTranslation.translation bTranslations (pure "pick")
     let eFallback = UI.div -- Translation._translation fallback
 
     let display = pure $ \x -> UI.string x

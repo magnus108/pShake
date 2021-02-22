@@ -1,6 +1,7 @@
 module Lib.App.Env
     ( Env(..)
     , Has(..)
+    , readTranslation
     , readGrades
     , readDagsdatoBackup
     , readCameras
@@ -22,6 +23,9 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
+
+    , HTranslationFile(..)
+    , MTranslationFile(..)
 
     , HGrades(..)
     , MGradesFile(..)
@@ -53,14 +57,14 @@ module Lib.App.Env
     , MCamerasFile(..)
     , grab
     )
-where
-
+where 
 import           Control.Lens                   ( (^.)
                                                 , (.~)
                                                 , over
                                                 )
 import qualified Control.Lens                  as Lens
 
+import qualified Lib.Model.Translation as Translation
 import Data.Char
 import Data.List
 import qualified System.FilePath as FP
@@ -131,7 +135,7 @@ data Env (m :: Type -> Type) = Env
     , mCamerasFile :: MCamerasFile
     , mTabsFile :: MTabsFile
     , mLocationFile :: MLocationFile
-    , mTranslationFile :: !(MVar FilePath)
+    , mTranslationFile :: MTranslationFile
     , mBuildFile :: MBuildFile
 
     , mStopMap :: MStopMap
@@ -178,6 +182,10 @@ data Env (m :: Type -> Type) = Env
     , hGrades :: HGrades
     , eLocationFile :: !(Reactive.Event (Data.Data String Location.Location))
     , hLocationFile :: HLocationFile
+
+    , eTranslationFile :: !(Reactive.Event Translation.Translations)
+    , hTranslationFile :: HTranslationFile
+
     , ePhotographees :: !(Reactive.Event ())
     , hPhotographees :: !(Reactive.Handler ())
     , eBuild :: !(Reactive.Event (Data.Data String Build.Build))
@@ -199,6 +207,8 @@ data Env (m :: Type -> Type) = Env
     , bDagsdatoDir :: !(Reactive.Behavior (Data.Data String Dagsdato.Dagsdato))
 
     , bLocationFile :: !(Reactive.Behavior (Data.Data String Location.Location))
+    , bTranslations :: !(Reactive.Behavior Translation.Translations)
+
     , bGrades :: !(Reactive.Behavior (Data.Data String Grade.Grades))
 
     , bDagsdatoBackupDir :: !(Reactive.Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup))
@@ -239,6 +249,10 @@ newtype HConfigDumpDir = HConfigDumpDir { unHConfigDumpDir :: Reactive.Handler (
 
 newtype MLocationFile = MLocationFile { unMLocationFile :: MVar FilePath }
 newtype HLocationFile = HLocationFile { unHLocationFile :: Reactive.Handler (Data.Data String Location.Location) }
+
+newtype MTranslationFile = MTranslationFile { unMTranslationFile :: MVar FilePath }
+--newtype HTranslationFile = HTranslationFile { unHTranslationFile :: Reactive.Handler (Data.Data String Translation.Translation) }
+newtype HTranslationFile = HTranslationFile { unHTranslationFile :: Reactive.Handler Translation.Translations }
 
 newtype MDagsdatoFile = MDagsdatoFile { unMDagsdatoFile :: MVar FilePath }
 newtype HDagsdatoDir = HDagsdatoDir { unHDagsdatoDir :: Reactive.Handler (Data.Data String Dagsdato.Dagsdato) }
@@ -348,6 +362,13 @@ instance Has MLocationFile              (Env m) where
 
 instance Has HLocationFile             (Env m) where
     obtain = hLocationFile
+
+
+instance Has MTranslationFile              (Env m) where
+    obtain = mTranslationFile
+
+instance Has HTranslationFile             (Env m) where
+    obtain = hTranslationFile
 
 grab :: forall  field env m . (MonadReader env m, Has field env) => m field
 grab = asks $ obtain @field
@@ -597,6 +618,33 @@ readCameras = do
                        )
     putMVar mCamerasFile camerasFile
     return cameras
+
+
+type WithTranslations r m
+    = ( MonadThrow m
+      , MonadError AppError m
+      , MonadReader r m
+      , Has MTranslationFile r
+      , MonadIO m
+      , MonadCatch m
+      , WithError m
+      )
+
+readTranslation :: forall  r m . WithTranslations r m => m Translation.Translations
+readTranslation = do
+    mTranslationFile <- unMTranslationFile <$> grab @MTranslationFile
+    translationFile <- takeMVar mTranslationFile
+    translations <- readJSONFile translationFile
+        `catchIOError` (\e -> do
+                           traceShowM e
+                           putMVar mTranslationFile translationFile
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+    putMVar mTranslationFile translationFile
+    return translations
 
 
 type WithShootings r m

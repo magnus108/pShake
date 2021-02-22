@@ -14,7 +14,7 @@ import qualified Lib.Client.Input.Text as TextEntry
 import qualified Lib.Client.Pop.Popup as Popup
 import Control.Conditional ((?<>))
 import qualified Lib.Client.Translation.Translation
-                                               as Translation
+                                               as ClientTranslation
 
 import           Data.Char
 import           Data.List
@@ -69,6 +69,7 @@ import           Lib.App                        ( runApp
                                                 , AppEnv
                                                 , readGrades
                                                 , grab
+                                                , readTranslation
                                                 , readDumpDir
                                                 , readCameras
                                                 , AppException(..)
@@ -100,6 +101,8 @@ import           Lib.App                        ( runApp
                                                 , MSessionsFile(..)
                                                 , HLocationFile(..)
                                                 , MLocationFile(..)
+                                                , HTranslationFile(..)
+                                                , MTranslationFile(..)
                                                 , HCameras(..)
                                                 , MCamerasFile(..)
                                                 , MStartMap(..)
@@ -144,6 +147,7 @@ import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Data                as Data
+import qualified Lib.Model.Translation                as Translation
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Location            as Location
@@ -1317,13 +1321,15 @@ data TabsBox a = TabsBox
     , _eSessions :: Event Session.Sessions
     , _eDownload :: Event ()
     , _eImporter :: Event ()
+    , _eTranlation :: Event Translation.Translations
     }
 
 instance Widget (TabsBox a) where
     getElement = _tabsE
 
 tabsBox
-    :: Behavior (Data.Data String Tab.Tabs)
+    :: Behavior Translation.Translations
+    -> Behavior (Data.Data String Tab.Tabs)
     -> Behavior (Data.Data String Photographer.Photographers)
     -> Behavior (Data.Data String Shooting.Shootings)
     -> Behavior (Data.Data String Dump.Dump)
@@ -1348,15 +1354,15 @@ tabsBox
            , Main.MainTab
            , TabsBox a
            )
-tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
+tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting bDagsdatoBackup bSessions bLocation bGrades bDumpDir bBuild
     = mdo
         _tabsE     <- UI.div
         _ss        <- UI.div
 
 
-        (errorView, _eTransError) <- Translation.translation2 bTranslations bMode (pure "error")
-        (loadingView, _eTransLoading) <- Translation.translation2 bTranslations bMode (pure "loading")
-        (notAskedView, _eTransNotAsked) <- Translation.translation2 bTranslations bMode (pure "notAsked")
+        (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations bMode (pure "error")
+        (loadingView, _eTransLoading) <- ClientTranslation.translation2 bTranslations bMode (pure "loading")
+        (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2 bTranslations bMode (pure "notAsked")
 
         photographers <- PhotographersTab.photographersTab errorView loadingView notAskedView bPhotographers
 
@@ -1380,11 +1386,11 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
     --
     -- x == (key, bview, (evalue, bkey))
         transTABS <- mapM (\t -> do
-            translation <- Translation.translation2 bTranslations bMode (pure (show t))
+            translation <- ClientTranslation.translation2 bTranslations bMode (pure (show t))
             return (t, translation)
             ) tabsy
 
-        let kv = transTABS <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd item) <@> (fst item))
+        let kv = transTABS <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
         -----------------------------------------------------------------------
 
 
@@ -1396,26 +1402,20 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let eSwitchMode = UI.click switchMode
 
         bMode <-
-            stepper Translation.Normal
-            $   Translation.toggle
+            stepper ClientTranslation.Normal
+            $   ClientTranslation.toggle
             <$> bMode
             <@  eSwitchMode
 
         let tMode = tidings bMode (bMode <@ eSwitchMode)
 
 
-        let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
-                                         , (\m k v -> HashMap.insert k v m) <$> bTranslations <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
+        let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
+                                         , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
+                                         , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
                                          ]<>kv)
-        bTranslations <-
-            stepper
-                    (HashMap.fromList
-                        [("pick", "Vælg anden!"), ("DumpTab", "Se Dump!")]
-                    )
-                $ eTranslation
 
-        let tTranslations = tidings bTranslations eTranslation
+        let tTranslations = tidings bTranslations (Translation.Translations <$> eTranslation)
 
 
         tabs <- ClientTabs.tabs (facts tTranslations) (facts tMode) transTABS bTabs 
@@ -1518,6 +1518,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
 
         let _eDownload = UI.click download
         let _eImporter = UI.click importer
+        let _eTranlation = Translation.Translations <$> eTranslation
         
         return
             ( elemLocation
@@ -1650,7 +1651,7 @@ setup env@Env {..} win = mdo
 
 
     (elemLocation, elemGrades, elemGradesInput, elemPhotograheesInput, elemPhotograheesInput2, mainTab, elem3) <-
-        tabsBox bTabs
+        tabsBox bTranslations bTabs
                 bPhotographers
                 bShootings
                 bDumpDir
@@ -1705,6 +1706,11 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteGrades item)
 
+
+    let eTranslation = _eTranlation elem3
+    _ <- onEvent eTranslation $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteTranslation item)
 
 
     let eBuild = Main._eBuild mainTab
@@ -1856,6 +1862,8 @@ type WithChan r m
       , Has MDumpFile r
       , Has HLocationFile r
       , Has MLocationFile r
+      , Has HTranslationFile r
+      , Has MTranslationFile r
       , Has HDagsdatoDir r
       , Has MDagsdatoFile r
       , Has HDagsdatoBackupDir r
@@ -1929,7 +1937,11 @@ setupStartMap = do
     let watcher13     = Watchers.buildFile
     let newStartMap13 = HashMap.insert key13 watcher13 newStartMap12
 
-    putMVar mStartMap newStartMap13
+    let key14         = "translation"
+    let watcher14     = Watchers.translationFile
+    let newStartMap14 = HashMap.insert key14 watcher14 newStartMap13
+
+    putMVar mStartMap newStartMap14
 
 
 read :: forall  r m . WithChan r m => m ()
@@ -1948,6 +1960,7 @@ read = do
     liftIO $ Chan.writeChan inChan Message.ReadLocation
     liftIO $ Chan.writeChan inChan Message.ReadGrades
     liftIO $ Chan.writeChan inChan Message.ReadBuild
+    liftIO $ Chan.writeChan inChan Message.ReadTranslation
 
 startStartMap :: forall  r m . WithChan r m => m ()
 startStartMap = do
@@ -1965,6 +1978,7 @@ startStartMap = do
     liftIO $ Chan.writeChan inChan Message.StartLocation
     liftIO $ Chan.writeChan inChan Message.StartGrades
     liftIO $ Chan.writeChan inChan Message.StartBuild
+    liftIO $ Chan.writeChan inChan Message.StartTranslation
 
 
 receiveMessages :: forall  r m . WithChan r m => Window -> m ()
@@ -2571,6 +2585,44 @@ receiveMessages window = do
                                        traceShowM e
                                        traceShowM "wtf6"
                                    )
+
+--------------------------------------------------------------------------------
+            Message.StopTranslation -> do
+                return ()
+
+            Message.WriteTranslation translations -> do
+                mTranslationFile <- unMTranslationFile <$> grab @MTranslationFile
+                translationsFile  <- takeMVar mTranslationFile
+                _           <- Translation.writeTranslations translationsFile translations
+                _           <- putMVar mTranslationFile translationsFile
+                _           <- liftIO $ runUI window $ do
+                    flushCallBuffer -- make sure that JavaScript functions are executed
+                return ()
+
+            Message.StartTranslation -> do
+                mStartMap <- unMStartMap <$> grab @(MStartMap m)
+                mStopMap  <- unMStopMap <$> grab @MStopMap
+                stopMap   <- takeMVar mStopMap
+                startMap  <- takeMVar mStartMap
+                let key = "translation"
+                traceShowM (HashMap.keys startMap)
+                let watch = startMap HashMap.! key
+                stop <- watch
+                let newStopMap = HashMap.insert key stop stopMap
+                _ <- putMVar mStartMap startMap
+                _ <- putMVar mStopMap newStopMap
+                return ()
+
+            Message.ReadTranslation ->
+                do
+                        translations  <- readTranslation
+                        hTranslations <- unHTranslationFile <$> grab @HTranslationFile
+                        liftIO $ hTranslations $ translations
+                    `E.catchError` (\e -> do
+                                            traceShowM e
+                                   )
+
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 

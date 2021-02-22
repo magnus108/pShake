@@ -4,7 +4,8 @@ module Lib.Client.DagsdatoBackupTab
     , DagsdatoBackupTab(..)
     )
 where
-import qualified Lib.Client.Translation.Translation as Translation
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
@@ -40,10 +41,10 @@ data DagsdatoBackupTab = DagsdatoBackupTab
 instance Widget DagsdatoBackupTab where
     getElement = _container
 
-dagsdatoBackupTab :: Behavior Translation.Translations -> Behavior Translation.Mode -> Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup) -> UI DagsdatoBackupTab
+dagsdatoBackupTab :: Behavior Translation.Translations -> Behavior ClientTranslation.Mode -> Behavior (Data.Data String DagsdatoBackup.DagsdatoBackup) -> UI DagsdatoBackupTab
 dagsdatoBackupTab bTranslations bMode bDagsdatoBackup = mdo
 
-    fallback <- Translation.translation bTranslations (pure "pick")
+    fallback <- ClientTranslation.translation bTranslations (pure "pick")
     let eFallback = UI.div -- Translation._translation fallback
 
     let display = pure $ \x -> UI.string x

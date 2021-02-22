@@ -11,8 +11,8 @@ import           Control.Conditional            ( (?<>) )
 
 import qualified Control.Lens                  as Lens
 
-import qualified Lib.Client.Translation.Translation
-                                               as Translation
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Lib.Client.Select.Select      as Select
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Model.Tab                as Tab
@@ -53,7 +53,7 @@ lookup  key ((x,y):xys)
     | otherwise         =  lookup key xys
 
 tabs :: Behavior Translation.Translations
-    -> Behavior Translation.Mode
+    -> Behavior ClientTranslation.Mode
     -> [(Tab.Tab, (Behavior [UI Element], (Event String, Behavior String)))]
     -> Behavior (Data.Data String Tab.Tabs)
     -> UI Tabs
@@ -81,22 +81,22 @@ tabs bTranslations bTransMode translations bTabs = do
                 return $ display
 
     let bDisplay'' = (\f mode z -> case mode of
-                            Translation.Translating ->
+                            ClientTranslation.Translating ->
                                 [UI.div #+ (concat (fmap snd (ListZipper.toList z)))]
-                            Translation.Normal -> do
+                            ClientTranslation.Normal -> do
                                 [UI.div #. "buttons has-addons" #+ ListZipper.toList (ListZipper.bextend f z)]
                      ) <$> bDisplay <*> bTransMode
 
 
-    (errorView, _eTransError) <- Translation.translation2 bTranslations
+    (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations
                                                           bTransMode
                                                           (pure "error")
-    (loadingView, _eTransLoading) <- Translation.translation2
+    (loadingView, _eTransLoading) <- ClientTranslation.translation2
         bTranslations
         bTransMode
         (pure "loading")
 
-    (notAskedView, _eTransNotAsked) <- Translation.translation2
+    (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2
         bTranslations
         bTransMode
         (pure "notAsked")

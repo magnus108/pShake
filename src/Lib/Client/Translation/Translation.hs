@@ -1,16 +1,22 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE ApplicativeDo #-}
 module Lib.Client.Translation.Translation
-    ( Translations
-    , Mode(..)
+    ( Mode(..)
     , toggle
     , translation
     , translation2
     , TranslationEntry(..)
     )
 where
+    
+import           Control.Lens                   ( (^.)
+                                                , (.~)
+                                                , over
+                                                )
+import qualified Control.Lens                  as Lens
 
 import qualified Lib.Model.Data                as Data
+import qualified Lib.Model.Translation                as Translation
 import qualified Lib.Client.Input.Text         as Entry
 import qualified Lib.Client.Pop.Popup         as Popup
 
@@ -41,7 +47,6 @@ toggle :: Mode -> Mode
 toggle Translating = Normal
 toggle Normal      = Translating
 
-type Translations = HashMap String String
 
 data TranslationEntry = TranslationEntry
     { _text :: Element
@@ -53,11 +58,12 @@ data TranslationEntry = TranslationEntry
     }
 
 translation
-    :: Behavior Translations
+    :: Behavior Translation.Translations
     -> Behavior String
     -> UI TranslationEntry
-translation bTranslations bKey = mdo
+translation bTranslations' bKey = mdo
 
+    let bTranslations = Lens.view Translation.unTranslation <$> bTranslations'
     popup <- Popup.popup bOpen bClose
     let _close = Popup._close popup
     let _open = Popup._open popup
@@ -78,11 +84,12 @@ translation bTranslations bKey = mdo
 
 
 translation2
-    :: Behavior Translations
+    :: Behavior Translation.Translations
     -> Behavior Mode
     -> Behavior String
     -> UI (Behavior [UI Element], (Event String, Behavior String))
 translation2 bTranslations bTransMode bKey = mdo
+
     trans <- translation bTranslations bKey
 
     let bView = do

@@ -8,8 +8,8 @@ where
 import Control.Conditional ((?<>))
 import qualified Lib.Model.Session        as Session
 import qualified Lib.Client.Select.Dropdown    as Dropdown
-import qualified Lib.Client.Translation.Translation
-                                               as Translation
+import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Client.Translation.Translation as ClientTranslation
 import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
@@ -40,7 +40,7 @@ instance Widget SessionsTab where
 
 sessionsTab
     :: Behavior Translation.Translations
-    -> Behavior Translation.Mode
+    -> Behavior ClientTranslation.Mode
     -> Behavior (Data.Data String Session.Sessions)
     -> UI SessionsTab
 sessionsTab bTranslations bMode bSessions = mdo

@@ -3,6 +3,7 @@ module Lib.Message
     )
 where
 
+import qualified Lib.Model.Translation as Translation
 import qualified Lib.Model.Photographer as Photographer
 import qualified Lib.Model.Tab as Tab
 import qualified Lib.Model.Shooting as Shooting
@@ -76,6 +77,11 @@ data Message
     | WriteLocation Location.Location
     | StartLocation
     | StopLocation
+
+    | ReadTranslation
+    | WriteTranslation Translation.Translations
+    | StartTranslation
+    | StopTranslation
 
     | ReadBuild
     | WriteBuild Build.Build
