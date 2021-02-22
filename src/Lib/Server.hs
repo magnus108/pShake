@@ -1617,6 +1617,13 @@ example options callback = ffi
     options
 
 
+example2 :: [String] -> JavaScript.JSObject -> JSFunction ()
+example2 options callback = ffi
+    "require('electron').remote.dialog.showSaveDialog().then(result => %1(result))"
+    callback
+    options
+
+
 
 
 setup :: AppEnv -> Window -> UI ()
@@ -1659,9 +1666,18 @@ setup env@Env {..} win = mdo
                 <$> (Data.toJust <$> bGrades)
                 <@> _photographeesSideTE elemPhotograheesInput2
 
+    let fxRunBuild =
+            (\folder -> when (folder /= "") $ liftIO $ void $ Chan.writeChan
+                (unInChan inChan)
+                (Message.RunDownload folder)
+            ) :: FilePath -> IO ()
+
+    callbackRunBuild <- ffiExport fxRunBuild
 
     _ <- onEvent (_eDownload elem3) $ \_ -> do
-        liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.RunDownload)
+        runFunction $ example2 [] callbackRunBuild
+
+
 
     _ <- onEvent eElemPhotographees2 $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
@@ -1673,9 +1689,12 @@ setup env@Env {..} win = mdo
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteGrades item)
 
+
+
     let eBuild = Main._eBuild mainTab
     _ <- onEvent eBuild $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan) (Message.RunBuild)
+
 
     let ePhotographers = _ePhotographers elem3
     _ <- onEvent ePhotographers $ \item -> do
@@ -2510,9 +2529,9 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 
-            Message.RunDownload -> do
-                ServerDownload.runDownload
-                    `catchIOError` (\e -> do
+            Message.RunDownload folder -> do
+                { ServerDownload.runDownload folder
+                } `catchIOError` (\e -> do
                            if isUserError e
                                then E.throwError
                                    (InternalError $ ServerError (show e))

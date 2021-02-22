@@ -175,12 +175,12 @@ nanosSinceEpoch :: UTCTime -> Integer
 nanosSinceEpoch =
     fromIntegral . floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
 
-runDownload :: forall  r m . WithChan r m => m ()
-runDownload = do
+runDownload :: forall  r m . WithChan r m => String -> m ()
+runDownload folder = do
     time <- liftIO getCurrentTime
     let timeEpoch = nanosSinceEpoch time
-
     let empty = Zip.emptyArchive
-    let entry = Zip.toEntry "photographers.json" timeEpoch "aaaa"
-    let myArchive1 = Zip.addEntryToArchive entry empty
-    liftIO $ B.writeFile "archive.zip" (BL.toStrict (Zip.fromArchive myArchive1))
+    mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+    photographersFile <- readMVar mPhotographersFile
+    archive1 <- liftIO $ Zip.addFilesToArchive [] empty [photographersFile]
+    liftIO $ B.writeFile folder (BL.toStrict (Zip.fromArchive archive1))

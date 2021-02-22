@@ -83,5 +83,5 @@ data Message
     | StopBuild
     | RunBuild
 
-    | RunDownload
+    | RunDownload String
         deriving Show
