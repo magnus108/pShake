@@ -65,6 +65,7 @@ library
       Lib.Server
       Lib.Server.Build
       Lib.Server.Download
+      Lib.Server.Import
       Lib.Stream
       Lib.Watchers
       Prelude

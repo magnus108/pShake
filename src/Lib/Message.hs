@@ -84,4 +84,6 @@ data Message
     | RunBuild
 
     | RunDownload String
+    | RunImporter String
+
         deriving Show

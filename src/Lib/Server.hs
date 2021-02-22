@@ -130,6 +130,7 @@ import qualified Graphics.UI.Threepenny        as UI
 import qualified Control.Concurrent.Chan.Unagi.Bounded
                                                as Chan
 
+import qualified Lib.Server.Import           as ServerImport
 import qualified Lib.Server.Download           as ServerDownload
 import qualified Lib.Server.Build              as ServerBuild
 import qualified Lib.Model.Build               as Build
@@ -1315,6 +1316,7 @@ data TabsBox a = TabsBox
     , _eShootings :: Event Shooting.Shootings
     , _eSessions :: Event Session.Sessions
     , _eDownload :: Event ()
+    , _eImporter :: Event ()
     }
 
 instance Widget (TabsBox a) where
@@ -1386,9 +1388,10 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         -----------------------------------------------------------------------
 
 
+        importer <- UI.button #. "button" # set text "importer"
         download <- UI.button #. "button" # set text "download"
         switchMode <- UI.button #. "button" # set text "skift"
-        extraMenu <- UI.div #. "buttons has-addons" # set children [download, switchMode]
+        extraMenu <- UI.div #. "buttons has-addons" # set children [importer, download, switchMode]
 
         let eSwitchMode = UI.click switchMode
 
@@ -1514,6 +1517,7 @@ tabsBox bTabs bPhotographers bShootings bDump bDagsdato bCameras bDoneshooting b
         let _eDoneshooting = DoneshootingTab._selection doneshooting
 
         let _eDownload = UI.click download
+        let _eImporter = UI.click importer
         
         return
             ( elemLocation
@@ -1667,15 +1671,27 @@ setup env@Env {..} win = mdo
                 <@> _photographeesSideTE elemPhotograheesInput2
 
     let fxRunBuild =
-            (\folder -> when (folder /= "") $ liftIO $ void $ Chan.writeChan
+            (\file -> when (file /= "") $ liftIO $ void $ Chan.writeChan
                 (unInChan inChan)
-                (Message.RunDownload folder)
+                (Message.RunDownload file)
             ) :: FilePath -> IO ()
 
     callbackRunBuild <- ffiExport fxRunBuild
 
     _ <- onEvent (_eDownload elem3) $ \_ -> do
         runFunction $ example2 [] callbackRunBuild
+
+
+    let fxRunImporter =
+            (\folder -> when (folder /= "") $ liftIO $ void $ Chan.writeChan
+                (unInChan inChan)
+                (Message.RunImporter folder)
+            ) :: FilePath -> IO ()
+
+    callbackRunImporter <- ffiExport fxRunImporter
+
+    _ <- onEvent (_eImporter elem3) $ \_ -> do
+        runFunction $ example ["openFile"] callbackRunImporter
 
 
 
@@ -2529,8 +2545,8 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 
-            Message.RunDownload folder -> do
-                { ServerDownload.runDownload folder
+            Message.RunDownload file -> do
+                { ServerDownload.runDownload file
                 } `catchIOError` (\e -> do
                            if isUserError e
                                then E.throwError
@@ -2542,6 +2558,19 @@ receiveMessages window = do
                                        traceShowM "wtf6"
                                    )
 
+
+            Message.RunImporter file -> do
+                { ServerImport.runImport file
+                } `catchIOError` (\e -> do
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       )
+                    `E.catchError` (\e -> do
+                                       traceShowM e
+                                       traceShowM "wtf6"
+                                   )
 
 --------------------------------------------------------------------------------
 

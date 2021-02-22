@@ -1,5 +1,5 @@
-module Lib.Server.Download
-    ( runDownload
+module Lib.Server.Import
+    ( runImport
     ) where
 
 
@@ -171,16 +171,13 @@ type WithChan r m
       , MonadCatch m
       )
 
-nanosSinceEpoch :: UTCTime -> Integer
-nanosSinceEpoch =
-    fromIntegral . floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
 
-runDownload :: forall  r m . WithChan r m => String -> m ()
-runDownload file = do
-    time <- liftIO getCurrentTime
-    let timeEpoch = nanosSinceEpoch time
-    let empty = Zip.emptyArchive
+runImport :: forall  r m . WithChan r m => String -> m ()
+runImport file = do
+    bs <- liftIO $ B.readFile file
+    let archive = Zip.toArchive (BL.fromStrict bs)
     mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
     photographersFile <- readMVar mPhotographersFile
-    archive1 <- liftIO $ Zip.addFilesToArchive [] empty [photographersFile]
-    liftIO $ B.writeFile file (BL.toStrict (Zip.fromArchive archive1))
+    let maybePhotographers = Zip.findEntryByPath photographersFile archive
+    let maybeBS = Zip.fromEntry <$> maybePhotographers
+    liftIO $ forM_ maybeBS $ \bs' -> B.writeFile photographersFile (BL.toStrict bs')
