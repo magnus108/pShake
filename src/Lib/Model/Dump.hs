@@ -11,7 +11,6 @@ module Lib.Model.Dump
 where
 
 import           Lib.Model.Data
-import           Utils.ListZipper
 import           Control.Lens
 
 import           Control.Monad.Catch            ( MonadThrow
@@ -28,12 +27,10 @@ makeLenses ''Dump
 
 
 
-getDump
-    :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Dump
+getDump :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Dump
 getDump = readJSONFile
 
-writeDump
-    :: (MonadIO m, MonadThrow m) => FilePath -> Dump -> m ()
+writeDump :: (MonadIO m, MonadThrow m) => FilePath -> Dump -> m ()
 writeDump = writeJSONFile
 
 initalState :: Data String Dump

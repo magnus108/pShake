@@ -8,33 +8,17 @@ module Lib.Client.PhotographersTab
 where
 import           Utils.Comonad
 
-import qualified Lib.Client.Input.Text         as Entry
 import qualified Utils.ListZipper              as ListZipper
-import qualified Lib.Client.Pop.Popup         as Popup
 import           Control.Conditional            ( (?<>) )
 import qualified Lib.Model.Photographer        as Photographer
-import qualified Lib.Client.Select.Dropdown as Dropdown
 
-import qualified Lib.Client.Translation.Translation
-                                               as Translation
-
-import qualified Data.HashMap.Strict           as HashMap
 
 import qualified Lib.Model.Data                as Data
 import qualified Relude.Unsafe                 as Unsafe
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
-import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Client.Picker.Picker      as Picker
 import qualified Control.Lens                  as Lens
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                )
+import           Control.Lens                   ( (^.))
 
 
 data PhotographersTab = PhotographersTab
@@ -72,10 +56,10 @@ photographersTab errorView loadingView notAskedView bPhotographers = mdo
     let bZipper = Lens.view Photographer.unPhotographers <<$>> bPhotographers
 
     let bDisplayOpen = pure $ \center photographers -> do
-                text <- UI.span # set text (extract photographers ^. Photographer.name)
+                text' <- UI.span # set text (extract photographers ^. Photographer.name)
                 display <- UI.button
                     #. (center ?<> "is-info is-seleceted" <> " " <> "button")
-                    #+ fmap element [text]
+                    #+ fmap element [text']
 
                 UI.on UI.click display $ \_ -> do
                     liftIO $ hSelection (Data.Data photographers)
@@ -84,12 +68,12 @@ photographersTab errorView loadingView notAskedView bPhotographers = mdo
 
 
     let bDisplayClosed = pure $ \photographers -> do
-                    text <- UI.span # set text (extract photographers ^. Photographer.name)
+                    text' <- UI.span # set text (extract photographers ^. Photographer.name)
                     icon <-
                         UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
                     display <- UI.button
                         #. "button"
-                        #+ fmap element [text, icon]
+                        #+ fmap element [text', icon]
 
                     UI.on UI.click display $ \_ -> do
                         liftIO $ hPopup ()
@@ -115,5 +99,6 @@ photographersTab errorView loadingView notAskedView bPhotographers = mdo
     return PhotographersTab { .. }
 
 
+items :: WriteAttr Element [UI Element]
 items = mkWriteAttr $ \i x -> void $ do
     return x # set children [] #+ i

@@ -8,12 +8,10 @@ module Prelude
     )
 where
 
-import Control.Exception (IOException)
 import           Relude
 
 import           System.IO.Error                ( userError )
 import           Control.Monad.Catch            ( MonadThrow
-                                                , MonadCatch
                                                 , throwM
                                                 )
 import           Data.Aeson                     ( FromJSON
@@ -28,8 +26,6 @@ import           Data.Aeson                     ( FromJSON
                                                 )
 import           Conduit                        ( builderToByteString
                                                 , sinkFileBS
-                                                , Source(..)
-                                                , ResourceT(..)
                                                 , MonadUnliftIO
                                                 )
 import           Data.Conduit                   ( ConduitM
@@ -38,21 +34,23 @@ import           Data.Conduit                   ( ConduitM
                                                 , yield
                                                 , catchC
                                                 )
-import           Data.Conduit.Attoparsec        ( sinkParser, ParseError(..))
+import           Data.Conduit.Attoparsec        ( sinkParser
+                                                , ParseError(..)
+                                                )
 import           Data.Conduit.Binary            ( sourceFile )
 
-import Control.Exception (catch)
 
 
 om :: Monad m => (a -> b -> m c) -> m a -> b -> m c
 om f m = (m >>=) . flip f
 
 
-sinkFromJSON :: (MonadUnliftIO m, MonadThrow m, FromJSON a) => ConduitM ByteString o m a
+sinkFromJSON
+    :: (MonadUnliftIO m, MonadThrow m, FromJSON a) => ConduitM ByteString o m a
 sinkFromJSON = do
     value <- sinkParser json `catchC` \e -> do
-                        let t = (e :: ParseError)
-                        throwM $ userError "couldNotRead"
+        let _ = (e :: ParseError)
+        throwM $ userError "couldNotRead"
     case fromJSON value of
         Error   e -> throwM $ userError e
         Success x -> return x

@@ -10,8 +10,6 @@ module Lib.Model.Translation
     )
 where
 
-import           Lib.Model.Data
-import           Utils.ListZipper
 import           Control.Lens
 
 import           Control.Monad.Catch            ( MonadThrow

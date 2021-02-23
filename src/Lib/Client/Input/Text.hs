@@ -6,30 +6,11 @@ module Lib.Client.Input.Text
     )
 where
 
-import Data.Char
-
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                , Lens'
-                                                )
-import qualified Control.Lens                  as Lens
-
-import qualified Relude.Unsafe                 as Unsafe
 import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
-import qualified Lib.Model.Build             as Build
-import qualified Lib.Model.DumpDir             as DumpDir
-import qualified Lib.Model.Grade               as Grade
-import qualified Lib.Model.Data                as Data
 
-import qualified Utils.ListZipper              as ListZipper
-import           Utils.Comonad
 
 data TextEntry = TextEntry
     { _elementTE :: Element

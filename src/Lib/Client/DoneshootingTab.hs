@@ -4,33 +4,17 @@ module Lib.Client.DoneshootingTab
     , DoneshootingTab(..)
     )
 where
-import qualified Lib.Model.Translation                as Translation
-import qualified Lib.Client.Translation.Translation as ClientTranslation
-import qualified Data.HashMap.Strict           as HashMap
+import qualified Lib.Model.Translation         as Translation
+import qualified Lib.Client.Translation.Translation
+                                               as ClientTranslation
 
+import qualified Control.Lens                  as Lens
 import qualified Lib.Model.Data                as Data
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                )
 
-import qualified Relude.Unsafe as Unsafe
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
-import qualified Lib.Model.Doneshooting                as Doneshooting
-import qualified Lib.Client.Picker.Picker as Picker
-import qualified Control.Lens                   as Lens
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                )
+import qualified Lib.Model.Doneshooting        as Doneshooting
+import qualified Lib.Client.Picker.Picker      as Picker
 
 
 data DoneshootingTab = DoneshootingTab
@@ -41,17 +25,26 @@ data DoneshootingTab = DoneshootingTab
 instance Widget DoneshootingTab where
     getElement = _container
 
-doneshootingTab :: Behavior Translation.Translations -> Behavior ClientTranslation.Mode -> Behavior (Data.Data String Doneshooting.Doneshooting) -> UI DoneshootingTab
+doneshootingTab
+    :: Behavior Translation.Translations
+    -> Behavior ClientTranslation.Mode
+    -> Behavior (Data.Data String Doneshooting.Doneshooting)
+    -> UI DoneshootingTab
 doneshootingTab bTranslations bMode bDoneshooting = mdo
 
-    fallback <- ClientTranslation.translation bTranslations (pure "pick")
+    --fallback <- ClientTranslation.translation bTranslations (pure "pick")
     let eFallback = UI.div -- Translation._translation fallback
 
-    let display = pure $ \x -> UI.string x
-    let filepath = fmap (Lens.view Doneshooting.unDoneshooting ) <$> bDoneshooting
-    picker <- Picker.picker bTranslations bMode filepath display (pure $ \_ -> eFallback)--(element fallback))
+    let display   = pure $ \x -> UI.string x
+    let filepath =
+            fmap (Lens.view Doneshooting.unDoneshooting) <$> bDoneshooting
+    picker <- Picker.picker bTranslations
+                            bMode
+                            filepath
+                            display
+                            (pure $ \_ -> eFallback)--(element fallback))
 
     _container <- UI.div #+ [element picker]
     let _selection = Picker._selection picker
 
-    return DoneshootingTab {..}
+    return DoneshootingTab { .. }

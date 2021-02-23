@@ -13,23 +13,13 @@ import qualified Control.Lens                  as Lens
 
 import qualified Lib.Model.Translation                as Translation
 import qualified Lib.Client.Translation.Translation as ClientTranslation
-import qualified Lib.Client.Select.Select      as Select
 import qualified Lib.Model.Data                as Data
-import qualified Lib.Model.Tab                as Tab
 import           Prelude                 hiding ( get )
 import qualified Relude.Unsafe                 as Unsafe
 import           Utils.Comonad
 import qualified Utils.ListZipper              as ListZipper
 import qualified Lib.Model.Tab                 as Tab
-import qualified Relude.Unsafe                 as Unsafe
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                )
 
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
@@ -65,18 +55,18 @@ tabs bTranslations bTransMode translations bTabs = do
 
     let bZipper = Lens.view Tab.unTabs <<$>> bTabs
 
-    let ggMAX = (\zip trans ->  fmap (\z -> fmap (\t -> (t, Unsafe.fromJust (lookup t trans ))) z ) zip) <$> bZipper <*> translations''
+    let ggMAX = (\zip' trans ->  fmap (\z -> fmap (\t -> (t, Unsafe.fromJust (lookup t trans ))) z ) zip') <$> bZipper <*> translations''
 
 
     (eSelection, hSelection) <- liftIO $ newEvent
 
-    let bDisplay = pure $ \center (tabs :: ListZipper.ListZipper (Tab.Tab, [UI Element])) -> do
+    let bDisplay = pure $ \center (tabs' :: ListZipper.ListZipper (Tab.Tab, [UI Element])) -> do
                 display <- UI.button
                     #. (center ?<> "is-info is-seleceted" <> " " <> "button")
-                    #+ (snd (extract tabs))
+                    #+ (snd (extract tabs'))
 
                 UI.on UI.click display $ \_ -> do
-                    liftIO $ hSelection (Data.Data (fmap fst tabs))
+                    liftIO $ hSelection (Data.Data (fmap fst tabs'))
 
                 return $ display
 
@@ -109,5 +99,6 @@ tabs bTranslations bTransMode translations bTabs = do
     return Tabs { .. }
 
 
+items :: WriteAttr Element [UI Element]
 items = mkWriteAttr $ \i x -> void $ do
     return x # set children [] #+ i

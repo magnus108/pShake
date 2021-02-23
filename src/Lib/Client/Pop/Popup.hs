@@ -6,17 +6,7 @@ module Lib.Client.Pop.Popup
     )
 where
 
-import qualified Lib.Model.Data                as Data
 import qualified Relude.Unsafe as Unsafe
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                )
-
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 

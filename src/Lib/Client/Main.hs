@@ -5,28 +5,20 @@ module Lib.Client.Main
     )
 where
 
-import qualified Data.HashMap.Strict           as HashMap
-import Lib.Client.Input.Text
-import Data.Char
+import           Lib.Client.Input.Text
+import           Data.Char
 
 import           Control.Lens                   ( (^.)
                                                 , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
                                                 , view
-                                                , Lens'
                                                 )
-import Lib.Client.Translation.Translation
-import qualified Lib.Client.Select.Select as Select
 import qualified Control.Lens                  as Lens
 
 import qualified Relude.Unsafe                 as Unsafe
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
-import qualified Lib.Model.Build             as Build
+import qualified Lib.Model.Build               as Build
 import qualified Lib.Model.DumpDir             as DumpDir
 import qualified Lib.Model.Grade               as Grade
 import qualified Lib.Model.Data                as Data
@@ -46,10 +38,14 @@ countable str bItems = do
 
     _elementCount <- UI.div
 
-    element _elementCount # sink (count str) bItems
+    _ <- element _elementCount # sink (count str) bItems
 
     return Count { .. }
 
+count
+    :: (Show a1, Foldable t)
+    => [Char]
+    -> WriteAttr Element (Data.Data a1 (t a2))
 count str = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
@@ -75,7 +71,8 @@ gradesSelect bItems = do
     _elementGradesSelect <- UI.div
     list                 <- UI.select
 
-    element _elementGradesSelect # sink (select list) (fmap mkGrades <$> bItems)
+    _                    <- element _elementGradesSelect
+        # sink (select list) (fmap mkGrades <$> bItems)
 
     let _gradesSelect =
             filterJust
@@ -85,6 +82,9 @@ gradesSelect bItems = do
 
     return GradesSelect { .. }
 
+
+select
+    :: (Show a, Widget w) => w -> WriteAttr Element (Data.Data a [UI Element])
 select list = mkWriteAttr $ \i x -> void $ do
     case i of
         Data.NotAsked  -> return x # set text "Not Asked"
@@ -93,7 +93,7 @@ select list = mkWriteAttr $ \i x -> void $ do
             err <- string (show e)
             return x # set children [] #+ [element err]
         Data.Data item -> do
-            element list # set children [] #+ item
+            _ <- element list # set children [] #+ item
             return x # set children [] #+ [element list]
 
 
@@ -137,7 +137,7 @@ photographeesSelect bItems = do
     _elementPhotographeesSelect <- UI.div
     list                        <- UI.select
 
-    element _elementPhotographeesSelect
+    _                           <- element _elementPhotographeesSelect
         # sink (select list) (fmap mkPhotographees <$> bItems)
 
     let _photographeesSelect =
@@ -181,21 +181,25 @@ data SearchEntry a = SearchEntry
 instance Widget (SearchEntry a) where
     getElement = _elementSearch
 
-search :: (a -> String) -> Behavior (Data.Data String (ListZipper.ListZipper a)) -> UI (SearchEntry a)
+search
+    :: (a -> String)
+    -> Behavior (Data.Data String (ListZipper.ListZipper a))
+    -> UI (SearchEntry a)
 search f bValue = mdo
 
-    input <- entry bSearchString
+    input         <- entry bSearchString
 
     bSearchString <- stepper "" . rumors $ userText input
-    
+
     let eSearchString = rumors $ fmap toUpper <$> userText input
 
-    let eSearch = (\b s -> b >>= (ListZipper.findFirst ((==) s . f)))
+    let eSearch =
+            (\b s -> b >>= (ListZipper.findFirst ((==) s . f)))
                 <$> (Data.toJust <$> bValue)
                 <@> eSearchString
 
     _elementSearch <- element input
-    let _search    = eSearch
+    let _search = eSearch
 
     return SearchEntry { .. }
 
@@ -209,9 +213,9 @@ instance Widget BuildSection where
     getElement = _elementBuild
 
 buildSection :: Behavior (Data.Data String Build.Build) -> UI BuildSection
-buildSection bValue = do
-    content <- UI.div
-    button <- UI.button # set text "byg"
+buildSection _ = do
+    content       <- UI.div
+    button        <- UI.button # set text "byg"
 
     _elementBuild <- element content #+ [element button]
     let _build = UI.click button
@@ -239,15 +243,23 @@ mainTab bGrades bDumpDir bBuild = mdo
 
     _elementMainTab <- UI.div
 
-    let bPhotographees =
-            fmap (view (Grade.unGrades . ListZipper.zipperL . Grade.photographees))
+    let
+        bPhotographees =
+            fmap
+                    (view
+                        ( Grade.unGrades
+                        . ListZipper.zipperL
+                        . Grade.photographees
+                        )
+                    )
                 <$> bGrades
 
-    elemBuild <- buildSection bBuild
+    elemBuild         <- buildSection bBuild
     elemPhotographees <- photographeesSelect bPhotographees
     elemGrades        <- gradesSelect bGrades
-    elemDumpDirCount  <- countable "Antal filer i dump:"
-                                   (fmap (Lens.view DumpDir.unDumpDir) <$> bDumpDir)
+    elemDumpDirCount  <- countable
+        "Antal filer i dump:"
+        (fmap (Lens.view DumpDir.unDumpDir) <$> bDumpDir)
     elemPhotographeesCount <- countable
         "Elever i klasse:"
         (   fmap ListZipper.toList
@@ -255,7 +267,8 @@ mainTab bGrades bDumpDir bBuild = mdo
         <$> bPhotographees
         )
 
-    elemSearch <- search (view Grade.tid)
+    elemSearch <- search
+        (view Grade.tid)
         (fmap (view Grade.unPhotographees) <$> bPhotographees)
 
     let ePhotographeesSelect =
@@ -272,20 +285,21 @@ mainTab bGrades bDumpDir bBuild = mdo
                 <$> (Data.toJust <$> bGrades)
                 <@> (Grade.Photographees <$> (filterJust (_search elemSearch)))
 
-    let _eMainTab =
-            Unsafe.head <$> unions [ePhotographeesSelect, eGradesSelect, eSearch]
+    let _eMainTab = Unsafe.head
+            <$> unions [ePhotographeesSelect, eGradesSelect, eSearch]
 
     let _eBuild = _build elemBuild
 
 
-    element _elementMainTab
-        #+ [ element elemGrades
-           , element elemPhotographees
-           , element elemPhotographeesCount
-           , element elemDumpDirCount
-           , element elemSearch
-           , element elemBuild
-           ]
+    _ <-
+        element _elementMainTab
+            #+ [ element elemGrades
+               , element elemPhotographees
+               , element elemPhotographeesCount
+               , element elemDumpDirCount
+               , element elemSearch
+               , element elemBuild
+               ]
 
     return MainTab { .. }
 
@@ -293,4 +307,8 @@ mainTab bGrades bDumpDir bBuild = mdo
 
 setPhotographees :: Grade.Photographees -> Grade.Grades -> Grade.Grades
 setPhotographees photographees grades =
-    Grade.unGrades . ListZipper.zipperL . Grade.photographees .~ photographees $ grades
+    Grade.unGrades
+        .  ListZipper.zipperL
+        .  Grade.photographees
+        .~ photographees
+        $  grades

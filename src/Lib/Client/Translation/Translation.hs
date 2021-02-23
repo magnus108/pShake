@@ -8,28 +8,13 @@ module Lib.Client.Translation.Translation
     , TranslationEntry(..)
     )
 where
-    
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                )
+
 import qualified Control.Lens                  as Lens
 
-import qualified Lib.Model.Data                as Data
-import qualified Lib.Model.Translation                as Translation
+import qualified Lib.Model.Translation         as Translation
 import qualified Lib.Client.Input.Text         as Entry
-import qualified Lib.Client.Pop.Popup         as Popup
+import qualified Lib.Client.Pop.Popup          as Popup
 
-import qualified Relude.Unsafe                 as Unsafe
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , (%~)
-                                                , lens
-                                                , view
-                                                )
-
-import qualified Reactive.Threepenny           as Reactive
 import           Graphics.UI.Threepenny.Core
 import qualified Graphics.UI.Threepenny        as UI
 
@@ -65,12 +50,12 @@ translation bTranslations' bKey = mdo
 
     let bTranslations = Lens.view Translation.unTranslation <$> bTranslations'
     popup <- Popup.popup bOpen bClose
-    let _close = Popup._close popup
-    let _open = Popup._open popup
+    let _close  = Popup._close popup
+    let _open   = Popup._open popup
     let _tPopup = Popup._tPopup popup
 
-    _text                      <- UI.span # sink text bText
-    input                      <- Entry.entry bTranslate
+    _text <- UI.span # sink text bText
+    input <- Entry.entry bTranslate
 
     let bText = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
     let bOpen      = (\s -> ("{{" ++ s ++ "}}")) <$> bKey
@@ -96,11 +81,10 @@ translation2 bTranslations bTransMode bKey = mdo
             transMode <- bTransMode
             popupMode <- facts (_tPopup trans)
             return $ fmap element $ case (transMode, popupMode) of
-                    (Translating, Popup.Open) -> do
-                        [_input trans, _close trans]
-                    (Translating, Popup.Closed) ->
-                        [_open trans]
-                    _ -> [_text trans]
+                (Translating, Popup.Open) -> do
+                    [_input trans, _close trans]
+                (Translating, Popup.Closed) -> [_open trans]
+                _                           -> [_text trans]
 
     let keyValue = (_eInput trans, bKey)
 

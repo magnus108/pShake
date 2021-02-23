@@ -8,7 +8,6 @@ module Lib.App.Error
 where
 
 import           Control.Monad.Except           ( MonadError )
-import qualified Control.Exception             as Exception
 
 type WithError m = MonadError AppError m
 

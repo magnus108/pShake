@@ -18,33 +18,23 @@ module Lib.Watchers
 where
 import           Control.Monad.Except           ( MonadError )
 
-import           Lib.App.Error                       ( AppException(..)
-                                                , AppError(..)
-                                                     , IError(..)
-                                                     , WithError
+import           Lib.App.Error                  ( AppError(..)
+                                                , IError(..)
+                                                , WithError
                                                 )
 
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
-                                                , catch
                                                 , catchIOError
-                                                , catchAll
-                                                , try
                                                 )
 import qualified Control.Monad.Except          as E
                                                 ( catchError
                                                 , throwError
                                                 )
 
-import           System.IO.Error                ( IOError
-                                                , isUserError
-                                                )
+import           System.IO.Error                ( isUserError )
 
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , view
-                                                )
+import           Control.Lens                   ( view )
 
 import           Lib.App                        ( grab
                                                 , Has(..)
@@ -53,28 +43,23 @@ import           Lib.App                        ( grab
                                                 , WatchManager
                                                 , MPhotographersFile
                                                 , MTabsFile
-
                                                 , MSessionsFile
                                                 , MShootingsFile
                                                 , MTranslationFile
                                                 , MCamerasFile
                                                 , MDumpFile
                                                 , MBuildFile
-
                                                 , MGradesFile
                                                 , MDagsdatoFile
                                                 , MDagsdatoBackupFile
                                                 , MDoneshootingFile
                                                 , MLocationFile
-
                                                 , MStopMap
                                                 , MStartMap
                                                 , unMPhotographersFile
                                                 , unMTabsFile
                                                 , unMBuildFile
-
                                                 , unMTranslationFile
-
                                                 , unMShootingsFile
                                                 , unMSessionsFile
                                                 , unMCamerasFile
@@ -84,7 +69,6 @@ import           Lib.App                        ( grab
                                                 , unMDagsdatoBackupFile
                                                 , unMDoneshootingFile
                                                 , unMLocationFile
-
                                                 , unInChan
                                                 , unWatchManager
                                                 )
@@ -97,44 +81,42 @@ import qualified System.FilePath               as FP
 
 import qualified Lib.Model.Dump                as Dump
 
-import           Control.Monad.Catch            ( MonadThrow
-                                                , MonadCatch
-                                                , try
-                                                )
 
-type WithEnv r m = (MonadReader r m
-  , Has MPhotographersFile r
-  , Has MGradesFile r
-
-  , Has MTabsFile r
-  , Has MShootingsFile r
-  , Has MSessionsFile r
-  , Has MCamerasFile r
-
-  , Has MDumpFile r
-
-  , MonadError AppError m
-  , WithError m
-
-  , Has MTranslationFile r
-  , Has MDagsdatoFile r
-  , Has MDagsdatoBackupFile r
-  , Has MDoneshootingFile r
-  , Has MLocationFile r
-
-  , Has MBuildFile r
-
-  , Has WatchManager r, Has (MStartMap m) r, Has MStopMap r, Has OutChan r, Has InChan r, MonadIO m,
-    MonadCatch m, MonadThrow m)
+type WithEnv r m
+    = ( MonadReader r m
+      , Has MPhotographersFile r
+      , Has MGradesFile r
+      , Has MTabsFile r
+      , Has MShootingsFile r
+      , Has MSessionsFile r
+      , Has MCamerasFile r
+      , Has MDumpFile r
+      , MonadError AppError m
+      , WithError m
+      , Has MTranslationFile r
+      , Has MDagsdatoFile r
+      , Has MDagsdatoBackupFile r
+      , Has MDoneshootingFile r
+      , Has MLocationFile r
+      , Has MBuildFile r
+      , Has WatchManager r
+      , Has (MStartMap m) r
+      , Has MStopMap r
+      , Has OutChan r
+      , Has InChan r
+      , MonadIO m
+      , MonadCatch m
+      , MonadThrow m
+      )
 
 
 translationFile :: WithEnv r m => m FS.StopListening
 translationFile = do
     unMTranslationFile <- unMTranslationFile <$> grab @MTranslationFile
-    file <- liftIO $ readMVar unMTranslationFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file               <- liftIO $ readMVar unMTranslationFile
+    watchManager       <- unWatchManager <$> grab @WatchManager
+    inChan             <- unInChan <$> grab @InChan
+    stop               <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -149,10 +131,10 @@ translationFile = do
 photographersFile :: WithEnv r m => m FS.StopListening
 photographersFile = do
     unMPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
-    file <- liftIO $ readMVar unMPhotographersFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file                 <- liftIO $ readMVar unMPhotographersFile
+    watchManager         <- unWatchManager <$> grab @WatchManager
+    inChan               <- unInChan <$> grab @InChan
+    stop                 <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -165,11 +147,11 @@ photographersFile = do
 
 tabsFile :: WithEnv r m => m FS.StopListening
 tabsFile = do
-    unMTabsFile <- unMTabsFile <$> grab @MTabsFile
-    file <- liftIO $ readMVar unMTabsFile
+    unMTabsFile  <- unMTabsFile <$> grab @MTabsFile
+    file         <- liftIO $ readMVar unMTabsFile
     watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    inChan       <- unInChan <$> grab @InChan
+    stop         <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -184,10 +166,10 @@ tabsFile = do
 camerasFile :: WithEnv r m => m FS.StopListening
 camerasFile = do
     unMCamerasFile <- unMCamerasFile <$> grab @MCamerasFile
-    file <- liftIO $ readMVar unMCamerasFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file           <- liftIO $ readMVar unMCamerasFile
+    watchManager   <- unWatchManager <$> grab @WatchManager
+    inChan         <- unInChan <$> grab @InChan
+    stop           <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -202,10 +184,10 @@ camerasFile = do
 shootingsFile :: WithEnv r m => m FS.StopListening
 shootingsFile = do
     unMShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
-    file <- liftIO $ readMVar unMShootingsFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file             <- liftIO $ readMVar unMShootingsFile
+    watchManager     <- unWatchManager <$> grab @WatchManager
+    inChan           <- unInChan <$> grab @InChan
+    stop             <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -220,10 +202,10 @@ shootingsFile = do
 sessionsFile :: WithEnv r m => m FS.StopListening
 sessionsFile = do
     unMSessionsFile <- unMSessionsFile <$> grab @MSessionsFile
-    file <- liftIO $ readMVar unMSessionsFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file            <- liftIO $ readMVar unMSessionsFile
+    watchManager    <- unWatchManager <$> grab @WatchManager
+    inChan          <- unInChan <$> grab @InChan
+    stop            <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -237,11 +219,11 @@ sessionsFile = do
 
 dumpFile :: WithEnv r m => m FS.StopListening
 dumpFile = do
-    unMDumpFile <- unMDumpFile <$> grab @MDumpFile
-    file <- liftIO $ readMVar unMDumpFile
+    unMDumpFile  <- unMDumpFile <$> grab @MDumpFile
+    file         <- liftIO $ readMVar unMDumpFile
     watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    inChan       <- unInChan <$> grab @InChan
+    stop         <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -270,27 +252,29 @@ type WithDump r m
 readDump :: forall  r m . WithDump r m => m Dump.Dump
 readDump = do
     mDumpFile <- unMDumpFile <$> grab @MDumpFile
-    dumpFile  <- takeMVar mDumpFile
-    dump <- readJSONFile dumpFile
-        `catchIOError` (\e -> do
-                           putMVar mDumpFile dumpFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
-    putMVar mDumpFile dumpFile
+    dumpFile' <- takeMVar mDumpFile
+    dump      <-
+        readJSONFile dumpFile'
+            `catchIOError` (\e -> do
+                               putMVar mDumpFile dumpFile'
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
+    putMVar mDumpFile dumpFile'
     return dump
 
 
 dumpDir :: WithEnv r m => m FS.StopListening
-dumpDir = do
-    { unMDumpFile <- unMDumpFile <$> grab @MDumpFile
-    ; file <- liftIO $ readMVar unMDumpFile
-    ; watchManager <- unWatchManager <$> grab @WatchManager
-    ; inChan <- unInChan <$> grab @InChan
-    ; dump <- readDump
-    ; stop <- liftIO $ FS.watchDir
+dumpDir =
+    do
+            watchManager <- unWatchManager <$> grab @WatchManager
+            inChan       <- unInChan <$> grab @InChan
+            dump         <- readDump
+            stop         <- liftIO $ FS.watchDir
                 watchManager
                 (view Dump.unDump dump)
                 (const True)
@@ -299,18 +283,18 @@ dumpDir = do
                     Chan.writeChan inChan Message.ReadDumpDir
                     return ()
                 )
-    ; return stop
-    } `E.catchError` (\e -> do
-                        return $ return ()
-                    )
+            return stop
+        `E.catchError` (\_ -> do
+                           return $ return ()
+                       )
 
 dagsdatoFile :: WithEnv r m => m FS.StopListening
 dagsdatoFile = do
     unMDagsdatoFile <- unMDagsdatoFile <$> grab @MDagsdatoFile
-    file <- liftIO $ readMVar unMDagsdatoFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file            <- liftIO $ readMVar unMDagsdatoFile
+    watchManager    <- unWatchManager <$> grab @WatchManager
+    inChan          <- unInChan <$> grab @InChan
+    stop            <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -324,10 +308,10 @@ dagsdatoFile = do
 dagsdatoBackupFile :: WithEnv r m => m FS.StopListening
 dagsdatoBackupFile = do
     unMDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
-    file <- liftIO $ readMVar unMDagsdatoBackupFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file                  <- liftIO $ readMVar unMDagsdatoBackupFile
+    watchManager          <- unWatchManager <$> grab @WatchManager
+    inChan                <- unInChan <$> grab @InChan
+    stop                  <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -342,10 +326,10 @@ dagsdatoBackupFile = do
 doneshootingFile :: WithEnv r m => m FS.StopListening
 doneshootingFile = do
     unMDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
-    file <- liftIO $ readMVar unMDoneshootingFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file                <- liftIO $ readMVar unMDoneshootingFile
+    watchManager        <- unWatchManager <$> grab @WatchManager
+    inChan              <- unInChan <$> grab @InChan
+    stop                <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -360,10 +344,10 @@ doneshootingFile = do
 locationFile :: WithEnv r m => m FS.StopListening
 locationFile = do
     unMLocationFile <- unMLocationFile <$> grab @MLocationFile
-    file <- liftIO $ readMVar unMLocationFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file            <- liftIO $ readMVar unMLocationFile
+    watchManager    <- unWatchManager <$> grab @WatchManager
+    inChan          <- unInChan <$> grab @InChan
+    stop            <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -378,10 +362,10 @@ locationFile = do
 gradesFile :: WithEnv r m => m FS.StopListening
 gradesFile = do
     unMGradesFile <- unMGradesFile <$> grab @MGradesFile
-    file <- liftIO $ readMVar unMGradesFile
-    watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    file          <- liftIO $ readMVar unMGradesFile
+    watchManager  <- unWatchManager <$> grab @WatchManager
+    inChan        <- unInChan <$> grab @InChan
+    stop          <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)
@@ -396,10 +380,10 @@ gradesFile = do
 buildFile :: WithEnv r m => m FS.StopListening
 buildFile = do
     unMBuildFile <- unMBuildFile <$> grab @MBuildFile
-    file <- liftIO $ readMVar unMBuildFile
+    file         <- liftIO $ readMVar unMBuildFile
     watchManager <- unWatchManager <$> grab @WatchManager
-    inChan <- unInChan <$> grab @InChan
-    stop <- liftIO $ FS.watchDir
+    inChan       <- unInChan <$> grab @InChan
+    stop         <- liftIO $ FS.watchDir
         watchManager
         (FP.dropFileName file)
         (\e -> FP.takeFileName (FS.eventPath e) == file)

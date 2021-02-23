@@ -81,7 +81,7 @@ mkAppEnv port Config.Config {..} = do
     mTranslationFile' <- newMVar translationFile
     let mTranslationFile = App.MTranslationFile mTranslationFile'
 
-    mPhotograheesFile <- newMVar photograheesFile
+    --mPhotograheesFile <- newMVar photograheesFile
 
     mBuildFile'       <- newMVar buildFile
     let mBuildFile = App.MBuildFile mBuildFile'

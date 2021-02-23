@@ -1,186 +1,67 @@
 module Lib.Server.Download
     ( runDownload
-    ) where
+    )
+where
 
 
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy          as BL
+import qualified Data.ByteString               as B
 
-import System.IO.Error (tryIOError)
-import Data.Char
-import qualified System.Directory as SD
-import qualified Data.List.Index as Indexed
-import Development.Shake
-import Development.Shake.FilePath
-import qualified Development.Shake.FilePath as FP
-import qualified Utils.ListZipper              as ListZipper
-import Data.Time
-import Data.Time.Clock.POSIX
-import Data.Int
 
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                , view
-                                                )
-
-import           Lib.App                        ( WithError
-                                                )
 
 import           Control.Monad.Except           ( MonadError )
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
-                                                , catch
-                                                , catchIOError
-                                                , catchAll
-                                                , try
-                                                )
-import qualified Control.Monad.Except          as E
-                                                ( catchError
-                                                , throwError
                                                 )
 
-import           Lib.App                        ( runApp
-                                                , AppEnv
-                                                , readGrades
-                                                , readShootings
-                                                , readDumpDir
-                                                , readPhotographers
-                                                , readSessions
-                                                , readCameras
-                                                , readLocation
-                                                , readDoneshooting
-                                                , readDagsdato
-                                                , readDagsdatoBackup
-                                                , readDump
-                                                , grab
-                                                , AppException(..)
-                                                , AppError(..)
-                                                , WithError
-                                                , IError(..)
-                                                , Env(..)
-                                                , Has(..)
-                                                , HPhotographers(..)
-                                                , MPhotographersFile(..)
-                                                , HGrades(..)
-                                                , MGradesFile(..)
-                                                , HDumpDir(..)
-                                                , HConfigDumpDir(..)
-                                                , MDumpFile(..)
-                                                , HDoneshootingDir(..)
-                                                , MDoneshootingFile(..)
-                                                , HDagsdatoDir(..)
-                                                , MDagsdatoFile(..)
-                                                , HDagsdatoBackupDir(..)
-                                                , MDagsdatoBackupFile(..)
-                                                , HTabs(..)
-                                                , MTabsFile(..)
-                                                , HShootings(..)
-                                                , MShootingsFile(..)
 
-                                                , HBuild(..)
-                                                , MBuildFile(..)
+import qualified Lib.App                       as App
 
-                                                , HSessions(..)
-                                                , MSessionsFile(..)
-                                                , HLocationFile(..)
-                                                , MLocationFile(..)
-                                                , HCameras(..)
-                                                , MCamerasFile(..)
-                                                , MStartMap(..)
-                                                , WatchManager(..)
-                                                , MStopMap(..)
-                                                , OutChan(..)
-                                                , InChan(..)
-                                                , unMPhotographersFile
-                                                , unHPhotographers
-                                                , unMGradesFile
-                                                , unHGrades
-                                                , unMTabsFile
-                                                , unHTabs
-                                                , unMShootingsFile
-                                                , unHShootings
-                                                , unMSessionsFile
-                                                , unHSessions
-                                                , unMCamerasFile
-                                                , unHCameras
-                                                , unMStopMap
-                                                , unMStartMap
-                                                , unOutChan
-                                                , unInChan
-                                                )
-import qualified Reactive.Threepenny           as Reactive
-import           Graphics.UI.Threepenny.Core
-import qualified Graphics.UI.Threepenny        as UI
-import qualified Control.Concurrent.Chan.Unagi.Bounded
-                                               as Chan
-
-import qualified Lib.Model.Build               as Build
-import qualified Lib.Model.Grade               as Grade
-import qualified Lib.Model.Doneshooting        as Doneshooting
-import qualified Lib.Model.Camera              as Camera
-import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.DumpDir                as DumpDir
-import qualified Lib.Model.Tab                 as Tab
-import qualified Lib.Model.Shooting            as Shooting
-import qualified Lib.Model.Session             as Session
-import qualified Lib.Model.Photographer        as Photographer
-import qualified Lib.Model.Data                as Data
-import qualified Lib.Model.Dagsdato            as Dagsdato
-import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
-import qualified Lib.Model.Location            as Location
-
-import qualified Codec.Archive.Zip as Zip
+import qualified Codec.Archive.Zip             as Zip
 
 
 type WithChan r m
     = ( MonadThrow m
-      , MonadError AppError m
+      , MonadError App.AppError m
       , MonadReader r m
-      , Has WatchManager r
-      , Has HPhotographers r
-      , Has MPhotographersFile r
-      , Has HTabs r
-      , Has MTabsFile r
-      , Has HShootings r
-      , Has MShootingsFile r
-      , Has HGrades r
-      , Has MGradesFile r
-      , Has HSessions r
-      , Has MSessionsFile r
-      , Has HCameras r
-      , Has MCamerasFile r
-      , Has HDumpDir r
-      , Has HBuild r
-      , Has HConfigDumpDir r
-      , Has MDumpFile r
-      , Has HLocationFile r
-      , Has MLocationFile r
-      , Has HDagsdatoDir r
-      , Has MDagsdatoFile r
-      , Has HDagsdatoBackupDir r
-      , Has MDagsdatoBackupFile r
-      , Has HDoneshootingDir r
-      , Has MDoneshootingFile r
-      , Has MBuildFile r
-      , Has (MStartMap m) r
-      , Has MStopMap r
-      , Has OutChan r
-      , Has InChan r
+      , App.Has App.WatchManager r
+      , App.Has App.HPhotographers r
+      , App.Has App.MPhotographersFile r
+      , App.Has App.HTabs r
+      , App.Has App.MTabsFile r
+      , App.Has App.HShootings r
+      , App.Has App.MShootingsFile r
+      , App.Has App.HGrades r
+      , App.Has App.MGradesFile r
+      , App.Has App.HSessions r
+      , App.Has App.MSessionsFile r
+      , App.Has App.HCameras r
+      , App.Has App.MCamerasFile r
+      , App.Has App.HDumpDir r
+      , App.Has App.HBuild r
+      , App.Has App.HConfigDumpDir r
+      , App.Has App.MDumpFile r
+      , App.Has App.HLocationFile r
+      , App.Has App.MLocationFile r
+      , App.Has App.HDagsdatoDir r
+      , App.Has App.MDagsdatoFile r
+      , App.Has App.HDagsdatoBackupDir r
+      , App.Has App.MDagsdatoBackupFile r
+      , App.Has App.HDoneshootingDir r
+      , App.Has App.MDoneshootingFile r
+      , App.Has App.MBuildFile r
+      , App.Has (App.MStartMap m) r
+      , App.Has App.MStopMap r
+      , App.Has App.OutChan r
+      , App.Has App.InChan r
       , MonadIO m
       , MonadCatch m
       )
 
-nanosSinceEpoch :: UTCTime -> Integer
-nanosSinceEpoch =
-    fromIntegral . floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
-
 runDownload :: forall  r m . WithChan r m => String -> m ()
 runDownload file = do
-    time <- liftIO getCurrentTime
-    let timeEpoch = nanosSinceEpoch time
-    let empty = Zip.emptyArchive
-    mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
+    let empty' = Zip.emptyArchive
+    mPhotographersFile <- App.unMPhotographersFile <$> App.grab @App.MPhotographersFile
     photographersFile <- readMVar mPhotographersFile
-    archive1 <- liftIO $ Zip.addFilesToArchive [] empty [photographersFile]
+    archive1 <- liftIO $ Zip.addFilesToArchive [] empty' [photographersFile]
     liftIO $ B.writeFile file (BL.toStrict (Zip.fromArchive archive1))

@@ -18,10 +18,10 @@ data Data e s
         deriving Foldable
 
 instance Bifunctor Data where
-    bimap _ _ NotAsked = NotAsked
-    bimap _ _ Loading = Loading
+    bimap _ _ NotAsked    = NotAsked
+    bimap _ _ Loading     = Loading
     bimap f _ (Failure e) = Failure (f e)
-    bimap _ g (Data s) = Data (g s)
+    bimap _ g (Data    s) = Data (g s)
 
 instance Monad (Data e) where
     return = Data
@@ -48,14 +48,14 @@ toJust _        = Nothing
 
 
 data' :: d -> d -> (e -> d) -> (s -> d) -> (Data e s) -> d
-data' _ _ _ g (Data s) = g s
+data' _ _ _ g (Data    s) = g s
 data' _ _ f _ (Failure e) = f e
-data' _ d _ _ Loading = d
-data' d _ _ _ NotAsked = d
+data' _ d _ _ Loading     = d
+data' d _ _ _ NotAsked    = d
 
 
 data'' :: d -> d -> d -> (s -> d) -> (Data e s) -> d
-data'' _ _ _ g (Data s) = g s
-data'' _ _ d _ (Failure e) = d
-data'' _ d _ _ Loading = d
-data'' d _ _ _ NotAsked = d
+data'' _ _ _ g (Data    s) = g s
+data'' _ _ d _ (Failure _) = d
+data'' _ d _ _ Loading     = d
+data'' d _ _ _ NotAsked    = d

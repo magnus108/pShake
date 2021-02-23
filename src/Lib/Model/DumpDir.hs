@@ -12,12 +12,8 @@ module Lib.Model.DumpDir
 where
 
 import           Lib.Model.Data
-import           Utils.ListZipper
 import           Control.Lens
 
-import           Control.Monad.Catch            ( MonadThrow
-                                                , MonadCatch
-                                                )
 
 type CR = FilePath
 type JPG = FilePath

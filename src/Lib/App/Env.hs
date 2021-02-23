@@ -13,7 +13,6 @@ module Lib.App.Env
     , readPhotographers
     , readDagsdato
     , readLocation
-    , readDagsdatoBackup
     , WatchManager(..)
     , StartMap
     , StopMap
@@ -23,24 +22,17 @@ module Lib.App.Env
     , OutChan(..)
     , HPhotographers(..)
     , MPhotographersFile(..)
-
     , HTranslationFile(..)
     , MTranslationFile(..)
-
     , HGrades(..)
     , MGradesFile(..)
-
     , HBuild(..)
     , MBuildFile(..)
-
     , HLocationFile(..)
     , MLocationFile(..)
-
     , HConfigDumpDir(..)
-
     , HDumpDir(..)
     , MDumpFile(..)
-
     , HDagsdatoDir(..)
     , MDagsdatoFile(..)
     , HDagsdatoBackupDir(..)
@@ -57,42 +49,31 @@ module Lib.App.Env
     , MCamerasFile(..)
     , grab
     )
-where 
-import           Control.Lens                   ( (^.)
-                                                , (.~)
-                                                , over
-                                                )
+where
+import           Control.Lens                   ( (^.) )
 import qualified Control.Lens                  as Lens
 
-import qualified Lib.Model.Translation as Translation
-import Data.Char
-import Data.List
-import qualified System.FilePath as FP
-import System.Directory
+import qualified Lib.Model.Translation         as Translation
+import           Data.Char
+import           Data.List
+import qualified System.FilePath               as FP
+import           System.Directory
 
 import           Control.Monad.Except           ( MonadError )
 
-import           Lib.App.Error                       ( AppException(..)
-                                                , AppError(..)
-                                                     , IError(..)
-                                                     , WithError
+import           Lib.App.Error                  ( AppError(..)
+                                                , IError(..)
+                                                , WithError
                                                 )
 import qualified Utils.ListZipper              as ListZipper
 import qualified Control.Monad.Except          as E
-                                                ( catchError
-                                                , throwError
-                                                )
+                                                ( throwError )
 
-import           System.IO.Error                ( IOError
-                                                , isUserError
-                                                )
+import           System.IO.Error                ( isUserError )
 
 import           Control.Monad.Catch            ( MonadThrow
                                                 , MonadCatch
-                                                , catch
                                                 , catchIOError
-                                                , catchAll
-                                                , try
                                                 )
 
 import qualified Data.HashMap.Strict           as HashMap
@@ -104,15 +85,15 @@ import qualified Lib.Model.Photographer        as Photographer
 import qualified Lib.Model.Tab                 as Tab
 import qualified Lib.Model.Shooting            as Shooting
 import qualified Lib.Model.Dump                as Dump
-import qualified Lib.Model.Build                as Build
-import qualified Lib.Model.DumpDir                as DumpDir
+import qualified Lib.Model.Build               as Build
+import qualified Lib.Model.DumpDir             as DumpDir
 import qualified Lib.Model.Camera              as Camera
 import qualified Lib.Model.Dagsdato            as Dagsdato
 import qualified Lib.Model.Session             as Session
 import qualified Lib.Model.DagsdatoBackup      as DagsdatoBackup
 import qualified Lib.Model.Doneshooting        as Doneshooting
-import qualified Lib.Model.Grade        as Grade
-import qualified Lib.Model.Location        as Location
+import qualified Lib.Model.Grade               as Grade
+import qualified Lib.Model.Location            as Location
 import qualified Lib.Model.Data                as Data
 import qualified Lib.Message                   as Message
 
@@ -392,14 +373,17 @@ readGrades :: forall  r m . WithGrades r m => m Grade.Grades
 readGrades = do
     mGradesFile <- unMGradesFile <$> grab @MGradesFile
     gradesFile  <- takeMVar mGradesFile
-    grades <- readJSONFile gradesFile
-        `catchIOError` (\e -> do
-                           putMVar mGradesFile gradesFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    grades      <-
+        readJSONFile gradesFile
+            `catchIOError` (\e -> do
+                               putMVar mGradesFile gradesFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mGradesFile gradesFile
     return grades
 
@@ -415,18 +399,22 @@ type WithPhotographers r m
       , WithError m
       )
 
-readPhotographers :: forall  r m . WithPhotographers r m => m Photographer.Photographers
+readPhotographers
+    :: forall  r m . WithPhotographers r m => m Photographer.Photographers
 readPhotographers = do
     mPhotographersFile <- unMPhotographersFile <$> grab @MPhotographersFile
     photographersFile  <- takeMVar mPhotographersFile
-    photographers <- readJSONFile photographersFile
-        `catchIOError` (\e -> do
-                           putMVar mPhotographersFile photographersFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    photographers      <-
+        readJSONFile photographersFile
+            `catchIOError` (\e -> do
+                               putMVar mPhotographersFile photographersFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mPhotographersFile photographersFile
     return photographers
 
@@ -446,14 +434,17 @@ readDump :: forall  r m . WithDump r m => m Dump.Dump
 readDump = do
     mDumpFile <- unMDumpFile <$> grab @MDumpFile
     dumpFile  <- takeMVar mDumpFile
-    dump <- readJSONFile dumpFile
-        `catchIOError` (\e -> do
-                           putMVar mDumpFile dumpFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    dump      <-
+        readJSONFile dumpFile
+            `catchIOError` (\e -> do
+                               putMVar mDumpFile dumpFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mDumpFile dumpFile
     return dump
 
@@ -469,18 +460,22 @@ type WithDoneshooting r m
       , WithError m
       )
 
-readDoneshooting :: forall  r m . WithDoneshooting r m => m Doneshooting.Doneshooting
+readDoneshooting
+    :: forall  r m . WithDoneshooting r m => m Doneshooting.Doneshooting
 readDoneshooting = do
     mDoneshootingFile <- unMDoneshootingFile <$> grab @MDoneshootingFile
     doneshootingFile  <- takeMVar mDoneshootingFile
-    doneshooting <- readJSONFile doneshootingFile
-        `catchIOError` (\e -> do
-                           putMVar mDoneshootingFile doneshootingFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    doneshooting      <-
+        readJSONFile doneshootingFile
+            `catchIOError` (\e -> do
+                               putMVar mDoneshootingFile doneshootingFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mDoneshootingFile doneshootingFile
     return doneshooting
 
@@ -501,14 +496,17 @@ readDagsdato :: forall  r m . WithDagsdato r m => m Dagsdato.Dagsdato
 readDagsdato = do
     mDagsdatoFile <- unMDagsdatoFile <$> grab @MDagsdatoFile
     dagsdatoFile  <- takeMVar mDagsdatoFile
-    dagsdato <- readJSONFile dagsdatoFile
-        `catchIOError` (\e -> do
-                           putMVar mDagsdatoFile dagsdatoFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    dagsdato      <-
+        readJSONFile dagsdatoFile
+            `catchIOError` (\e -> do
+                               putMVar mDagsdatoFile dagsdatoFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mDagsdatoFile dagsdatoFile
     return dagsdato
 
@@ -524,18 +522,22 @@ type WithDagsdatoBackup r m
       , WithError m
       )
 
-readDagsdatoBackup :: forall  r m . WithDagsdatoBackup r m => m DagsdatoBackup.DagsdatoBackup
+readDagsdatoBackup
+    :: forall  r m . WithDagsdatoBackup r m => m DagsdatoBackup.DagsdatoBackup
 readDagsdatoBackup = do
     mDagsdatoBackupFile <- unMDagsdatoBackupFile <$> grab @MDagsdatoBackupFile
     dagsdatoBackupFile  <- takeMVar mDagsdatoBackupFile
-    dagsdatoBackup <- readJSONFile dagsdatoBackupFile
-        `catchIOError` (\e -> do
-                           putMVar mDagsdatoBackupFile dagsdatoBackupFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    dagsdatoBackup      <-
+        readJSONFile dagsdatoBackupFile
+            `catchIOError` (\e -> do
+                               putMVar mDagsdatoBackupFile dagsdatoBackupFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mDagsdatoBackupFile dagsdatoBackupFile
     return dagsdatoBackup
 
@@ -555,14 +557,17 @@ readLocation :: forall  r m . WithLocation r m => m Location.Location
 readLocation = do
     mLocationFile <- unMLocationFile <$> grab @MLocationFile
     locationFile  <- takeMVar mLocationFile
-    location <- readJSONFile locationFile
-        `catchIOError` (\e -> do
-                           putMVar mLocationFile locationFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    location      <-
+        readJSONFile locationFile
+            `catchIOError` (\e -> do
+                               putMVar mLocationFile locationFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mLocationFile locationFile
     return location
 
@@ -581,15 +586,18 @@ type WithSessions r m
 readSessions :: forall  r m . WithSessions r m => m Session.Sessions
 readSessions = do
     mSessionsFile <- unMSessionsFile <$> grab @MSessionsFile
-    sessionsFile <- takeMVar mSessionsFile
-    sessions <- readJSONFile sessionsFile
-        `catchIOError` (\e -> do
-                           putMVar mSessionsFile sessionsFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    sessionsFile  <- takeMVar mSessionsFile
+    sessions      <-
+        readJSONFile sessionsFile
+            `catchIOError` (\e -> do
+                               putMVar mSessionsFile sessionsFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mSessionsFile sessionsFile
     return sessions
 
@@ -607,15 +615,18 @@ type WithCameras r m
 readCameras :: forall  r m . WithCameras r m => m Camera.Cameras
 readCameras = do
     mCamerasFile <- unMCamerasFile <$> grab @MCamerasFile
-    camerasFile <- takeMVar mCamerasFile
-    cameras <- readJSONFile camerasFile
-        `catchIOError` (\e -> do
-                           putMVar mCamerasFile camerasFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    camerasFile  <- takeMVar mCamerasFile
+    cameras      <-
+        readJSONFile camerasFile
+            `catchIOError` (\e -> do
+                               putMVar mCamerasFile camerasFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mCamerasFile camerasFile
     return cameras
 
@@ -630,19 +641,22 @@ type WithTranslations r m
       , WithError m
       )
 
-readTranslation :: forall  r m . WithTranslations r m => m Translation.Translations
+readTranslation
+    :: forall  r m . WithTranslations r m => m Translation.Translations
 readTranslation = do
     mTranslationFile <- unMTranslationFile <$> grab @MTranslationFile
-    translationFile <- takeMVar mTranslationFile
-    translations <- readJSONFile translationFile
-        `catchIOError` (\e -> do
-                           traceShowM e
-                           putMVar mTranslationFile translationFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    translationFile  <- takeMVar mTranslationFile
+    translations     <-
+        readJSONFile translationFile
+            `catchIOError` (\e -> do
+                               putMVar mTranslationFile translationFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mTranslationFile translationFile
     return translations
 
@@ -660,15 +674,18 @@ type WithShootings r m
 readShootings :: forall  r m . WithShootings r m => m Shooting.Shootings
 readShootings = do
     mShootingsFile <- unMShootingsFile <$> grab @MShootingsFile
-    shootingsFile <- takeMVar mShootingsFile
-    shootings <- readJSONFile shootingsFile
-        `catchIOError` (\e -> do
-                           putMVar mShootingsFile shootingsFile
-                           if isUserError e
-                               then E.throwError
-                                   (InternalError $ ServerError (show e))
-                               else E.throwError (InternalError $ WTF)
-                       )
+    shootingsFile  <- takeMVar mShootingsFile
+    shootings      <-
+        readJSONFile shootingsFile
+            `catchIOError` (\e -> do
+                               putMVar mShootingsFile shootingsFile
+                               if isUserError e
+                                   then
+                                       E.throwError
+                                           (InternalError $ ServerError (show e)
+                                           )
+                                   else E.throwError (InternalError $ WTF)
+                           )
     putMVar mShootingsFile shootingsFile
     return shootings
 
@@ -685,29 +702,32 @@ type WithDumpDir r m
       , WithError m
       )
 
-readDumpDir :: forall r m . WithDumpDir r m => m DumpDir.DumpDir
-readDumpDir = do {
-    dump <- readDump
-    ;cameras <- readCameras
-    ;let extension = Camera.toExtension $ cameras ^. Camera.unCameras . ListZipper.zipperL
-    ;let filepath = Lens.view Dump.unDump dump
-
-    ;files <- liftIO $ listDirectory filepath
-
-    ;let (crs, jpgs) = partition (\x -> FP.takeExtension x == extension ) $
-            filter (\x -> 
-                        let
-                        ext = fmap toLower (FP.takeExtension x)
-                    in 
-                        (trace ext ext) == extension || ext == ".jpg"
-                   ) 
-            (sort files)
-
-    ;let pairUp = catMaybes [if FP.dropExtension i == (FP.dropExtension j) then Just (i,j) else Nothing | i <- crs, j <- jpgs]
-
-    ;traceShowM pairUp
+readDumpDir :: forall  r m . WithDumpDir r m => m DumpDir.DumpDir
+readDumpDir = do
+    dump    <- readDump
+    cameras <- readCameras
+    let extension =
+            Camera.toExtension
+                $  cameras
+                ^. Camera.unCameras
+                .  ListZipper.zipperL
+    let filepath = Lens.view Dump.unDump dump
+    files <- liftIO $ listDirectory filepath
+    let (crs, jpgs) =
+            partition (\x -> FP.takeExtension x == extension) $ filter
+                (\x ->
+                    let ext = fmap toLower (FP.takeExtension x)
+                    in  ext == extension || ext == ".jpg"
+                )
+                (sort files)
+    let pairUp = catMaybes
+            [ if FP.dropExtension i == (FP.dropExtension j)
+                  then Just (i, j)
+                  else Nothing
+            | i <- crs
+            , j <- jpgs
+            ]
     -- Pair them
-    ;let pairs = DumpDir.DumpDir (fmap (\(x,y) -> DumpDir.File x y) pairUp)
-    ;return pairs
-    } 
+    let pairs = DumpDir.DumpDir (fmap (\(x, y) -> DumpDir.File x y) pairUp)
+    return pairs
 

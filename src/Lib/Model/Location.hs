@@ -11,7 +11,6 @@ module Lib.Model.Location
 where
 
 import           Lib.Model.Data
-import           Utils.ListZipper
 import           Control.Lens
 
 import           Control.Monad.Catch            ( MonadThrow

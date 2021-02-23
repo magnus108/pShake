@@ -22,9 +22,7 @@ import           Lib.Model.Data
 import           Utils.ListZipper
 import           Control.Lens
 
-import           Control.Monad.Catch            ( MonadThrow
-                                                , MonadCatch
-                                                )
+import           Control.Monad.Catch            ( MonadThrow )
 
 type GradeId = String
 type Name = String

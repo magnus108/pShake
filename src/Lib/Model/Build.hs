@@ -9,11 +9,10 @@ module Lib.Model.Build
     )
 where
 
-import qualified Lib.Model.Grade as Grade
+import qualified Lib.Model.Grade               as Grade
 
 
 import           Lib.Model.Data
-import           Utils.ListZipper
 import           Control.Lens
 
 import           Control.Monad.Catch            ( MonadThrow
@@ -34,12 +33,10 @@ data Build
 makeLenses ''Build
 
 
-getBuild
-    :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Build
+getBuild :: (MonadCatch m, MonadIO m, MonadThrow m) => FilePath -> m Build
 getBuild = readJSONFile
 
-writeBuild
-    :: (MonadIO m, MonadThrow m) => FilePath -> Build -> m ()
+writeBuild :: (MonadIO m, MonadThrow m) => FilePath -> Build -> m ()
 writeBuild = writeJSONFile
 
 initalState :: Data String Build
