@@ -1,4 +1,5 @@
 {-# LANGUAGE RecursiveDo #-}
+
 module Lib.Server
     ( setup
     )
@@ -889,20 +890,22 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
         liftIOLater $ runUI window $ do
             s <- currentValue bPhotographers
+            element _tabsE # set children [menu, _ss]
             forM_ s $ \s' -> do
                 let photographers' = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers') then
                     element _tabsE # set children [menu, _ss, extraMenu]
                 else
-                    element _tabsE # set children [menu, _ss]
+                    return _tabsE
 
         liftIOLater $ Reactive.onChange bPhotographers $ \s -> runUI window $ do
+            element _tabsE # set children [menu, _ss]
             forM_ s $ \s' -> do
                 let photographers' = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers') then
                     element _tabsE # set children [menu, _ss, extraMenu]
                 else
-                    element _tabsE # set children [menu, _ss]
+                    return _tabsE
 
 
         let _tabsPB = eSelection
