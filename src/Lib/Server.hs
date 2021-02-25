@@ -738,8 +738,7 @@ instance Widget (TabsBox a) where
 format' :: String -> [String] -> String
 format' code args = go code
     where
-    at xs i = maybe (error err) id $ atMay xs i
-    err     = "Graphics.UI.Threepenny.FFI: Too few arguments in FFI call!"
+    at xs i = maybe " " id $ atMay xs i
     argument i = args `at` i
 
     go []           = []
