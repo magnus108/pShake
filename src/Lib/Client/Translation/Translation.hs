@@ -45,8 +45,9 @@ data TranslationEntry = TranslationEntry
 translation
     :: Behavior Translation.Translations
     -> Behavior String
+    -> Behavior (String -> String)
     -> UI TranslationEntry
-translation bTranslations' bKey = mdo
+translation bTranslations' bKey bFormat = mdo
 
     let bTranslations = Lens.view Translation.unTranslation <$> bTranslations'
     popup <- Popup.popup bOpen bClose
@@ -54,10 +55,16 @@ translation bTranslations' bKey = mdo
     let _open   = Popup._open popup
     let _tPopup = Popup._tPopup popup
 
-    _text <- UI.span # sink text bText
+    _text <- UI.span # sink texty bText
     input <- Entry.entry bTranslate
 
-    let bText = (\k -> HashMap.lookupDefault k k) <$> bKey <*> bTranslations
+    let bText = (\k t f ->
+                    let lookup = HashMap.lookup k t in
+                    case lookup of
+                        Nothing -> Left k
+                        Just v -> Right (f v)
+                    ) <$> bKey <*> bTranslations <*> bFormat
+
     let bOpen      = (\s -> ("{{" ++ s ++ "}}")) <$> bKey
     let bClose     = HashMap.lookupDefault "close" "close" <$> bTranslations
     let bTranslate = HashMap.lookupDefault "" <$> bKey <*> bTranslations
@@ -67,15 +74,21 @@ translation bTranslations' bKey = mdo
 
     return TranslationEntry { .. }
 
+texty :: WriteAttr Element (Either String String)
+texty = mkWriteAttr $ \s el -> do
+    case s of
+        Left k -> runFunction $ ffi "$(%1).text(%2)" el k
+        Right v -> runFunction $ ffi "$(%1).text(%2)" el v
 
 translation2
     :: Behavior Translation.Translations
     -> Behavior Mode
     -> Behavior String
+    -> Behavior (String -> String)
     -> UI (Behavior [UI Element], (Event String, Behavior String))
-translation2 bTranslations bTransMode bKey = mdo
+translation2 bTranslations bTransMode bKey bFormat = mdo
 
-    trans <- translation bTranslations bKey
+    trans <- translation bTranslations bKey bFormat
 
     let bView = do
             transMode <- bTransMode

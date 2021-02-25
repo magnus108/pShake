@@ -48,6 +48,10 @@ dependencies:
 - servant-conduit >= 0.15 && < 0.19
 - http-client >= 0.6 && < 0.7
 - zip-archive >= 0.4 && < 0.5
+- string-interpolate >= 0.2 && < 0.3
+- formatting >= 6.0 && < 7.0
+- safe >= 0.3 && < 0.4
+
 
 default-extensions:
 - BangPatterns

@@ -1,10 +1,14 @@
 {-# LANGUAGE RecursiveDo #-}
-
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Lib.Server
     ( setup
     )
 where
 
+
+import           Safe                             (atMay)
+import Data.String.Interpolate ( i )
 import qualified Lib.Client.Translation.Translation
                                                as ClientTranslation
 
@@ -727,6 +731,39 @@ data TabsBox a = TabsBox
 instance Widget (TabsBox a) where
     getElement = _tabsE
 
+
+
+
+
+format' :: String -> [String] -> String
+format' code args = go code
+    where
+    at xs i = maybe (error err) id $ atMay xs i
+    err     = "Graphics.UI.Threepenny.FFI: Too few arguments in FFI call!"
+    argument i = args `at` i
+
+    go []           = []
+    go ('%':'%':cs) = '%' : go cs
+    go ('%':c  :cs) = argument index ++ go cs
+        where index = fromEnum c - fromEnum '1'
+    go (c:cs)       = c : go cs
+
+
+format :: PrintfType a => String -> a
+format x = fancy (format' x)
+
+class PrintfType a where
+    fancy :: ([String] -> String) -> a
+
+instance PrintfType String where
+    fancy f = f []
+
+instance (PrintfType r) => PrintfType (String -> r) where
+    fancy f x = fancy $ \xs -> f (x:xs)
+
+
+
+
 tabsBox
     :: Behavior Translation.Translations
     -> Behavior (Data.Data String Tab.Tabs)
@@ -760,9 +797,10 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         _ss        <- UI.div
 
 
-        (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations bMode (pure "error")
-        (loadingView, _eTransLoading) <- ClientTranslation.translation2 bTranslations bMode (pure "loading")
-        (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2 bTranslations bMode (pure "notAsked")
+        let dave = "Dave" :: String
+        (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations bMode (pure "error") (pure (\v ->  format v dave)) --(\v -> format v "dave"))
+        (loadingView, _eTransLoading) <- ClientTranslation.translation2 bTranslations bMode (pure "loading") (pure id)
+        (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2 bTranslations bMode (pure "notAsked") (pure id)
 
         photographers <- PhotographersTab.photographersTab errorView loadingView notAskedView bPhotographers
 
@@ -786,7 +824,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
     --
     -- x == (key, bview, (evalue, bkey))
         transTABS <- mapM (\t -> do
-            translation <- ClientTranslation.translation2 bTranslations bMode (pure (show t))
+            translation <- ClientTranslation.translation2 bTranslations bMode (pure (show t)) (pure id)
             return (t, translation)
             ) tabsy
 

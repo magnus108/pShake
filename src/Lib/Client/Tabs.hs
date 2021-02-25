@@ -81,15 +81,18 @@ tabs bTranslations bTransMode translations bTabs = do
     (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations
                                                           bTransMode
                                                           (pure "error")
+                                                          (pure id)
     (loadingView, _eTransLoading) <- ClientTranslation.translation2
         bTranslations
         bTransMode
         (pure "loading")
+        (pure id)
 
     (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2
         bTranslations
         bTransMode
         (pure "notAsked")
+        (pure id)
 
 --"buttons has-addons"
     _container   <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> bDisplay'' <*> ggMAX)
