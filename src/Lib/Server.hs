@@ -7,6 +7,7 @@ module Lib.Server
 where
 
 
+import qualified System.Directory as SD
 import           Safe                             (atMay)
 import Data.String.Interpolate ( i )
 import qualified Lib.Client.Translation.Translation
@@ -2189,7 +2190,12 @@ runIt5
 runIt5 window dagsdatoFile mDagsdatoFile = do
     dagsdato     <- getDagsdato dagsdatoFile
     hDagsdatoDir <- unHDagsdatoDir <$> grab @HDagsdatoDir
-    liftIO $ hDagsdatoDir $ Data.Data dagsdato
+    let fp = Lens.view Dagsdato.unDagsdato dagsdato
+    b <- liftIO $ SD.doesDirectoryExist fp
+    if (b) then
+        liftIO $ hDagsdatoDir $ Data.Data dagsdato
+    else
+        liftIO $ hDagsdatoDir $ Data.Failure "does not exist"
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
     putMVar mDagsdatoFile dagsdatoFile
 
