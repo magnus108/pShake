@@ -805,6 +805,27 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
 
         -----------------------------------------------------------------------
+        camerasTrans <- mapM (\c -> do
+                                translation <- ClientTranslation.translation2 bTranslations bMode (pure (show c)) (pure id)
+                                return (c, translation)
+                             ) $ [ Camera.CR2 , Camera.CR3 ]
+
+        let camerasTranslations' = camerasTrans <&> (\(k,(v,_)) -> (\v' -> (k,v')) <$> v)
+        -- (key, UI children)
+        let camerasTranslations'' = sequenceA camerasTranslations'
+
+        let bZipperCam = Lens.view Camera.unCameras <<$>> bCameras
+
+        let lookups' _key []          =  Nothing
+            lookups' key ((x,y):xys)
+                            | key == x           =  Just y
+                            | otherwise         =  lookups' key xys
+
+        let ggCam = (\zip' trans ->  fmap (\z -> fmap (\t -> (t, Unsafe.fromJust (lookups' t trans ))) z ) zip') <$> bZipperCam <*> camerasTranslations''
+
+        cameras       <- CamerasTab.camerasTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView ggCam
+
+        -----------------------------------------------------------------------
         let tabsy = [ Tab.DumpTab
                 , Tab.DagsdatoTab
                 , Tab.DagsdatoBackupTab
@@ -828,6 +849,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
             ) tabsy
 
         let kv = transTABS <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
+        let kv2 = camerasTrans <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
         -----------------------------------------------------------------------
 
 
@@ -850,7 +872,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
-                                         ]<>kv)
+                                         ]<>kv<>kv2)
 
         let tTranslations = tidings bTranslations (Translation.Translations <$> eTranslation)
 
@@ -880,7 +902,6 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         shootings      <- ShootingsTab.shootingsTab bTranslations bMode bShootings
         elemDump           <- DumpTab.dumpTab bTranslations bMode bDump
         elemDagsdato <- DagsdatoTab.dagsdatoTab bTranslations bMode bDagsdato
-        cameras            <- CamerasTab.camerasTab bTranslations bMode bCameras
         doneshooting   <- DoneshootingTab.doneshootingTab bTranslations bMode bDoneshooting
         elemDagsdatoBackup <- DagsdatoBackupTab.dagsdatoBackupTab
             bTranslations
@@ -925,22 +946,24 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
         window <- askWindow
 
+        padder1 <- UI.br
+        padder2  <- UI.br
         liftIOLater $ runUI window $ do
             s <- currentValue bPhotographers
-            element _tabsE # set children [menu, _ss]
+            element _tabsE # set children [menu, padder1, _ss]
             forM_ s $ \s' -> do
                 let photographers' = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers') then
-                    element _tabsE # set children [menu, _ss, extraMenu]
+                    element _tabsE # set children [menu, padder1, _ss, padder2, extraMenu]
                 else
                     return _tabsE
 
         liftIOLater $ Reactive.onChange bPhotographers $ \s -> runUI window $ do
-            element _tabsE # set children [menu, _ss]
+            element _tabsE # set children [menu, padder1, _ss]
             forM_ s $ \s' -> do
                 let photographers' = Lens.view Photographer.unPhotographers s'
                 if (ListZipper.isLeft photographers') then
-                    element _tabsE # set children [menu, _ss, extraMenu]
+                    element _tabsE # set children [menu, padder1, _ss, padder2, extraMenu]
                 else
                     return _tabsE
 

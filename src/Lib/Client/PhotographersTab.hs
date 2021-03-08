@@ -7,6 +7,7 @@ module Lib.Client.PhotographersTab
     )
 where
 import           Utils.Comonad
+import Lib.Client.Utils
 
 import qualified Utils.ListZipper              as ListZipper
 import           Control.Conditional            ( (?<>) )
@@ -97,8 +98,3 @@ photographersTab errorView loadingView notAskedView bPhotographers = mdo
     let _selection = fmap Photographer.Photographers $ filterJust $ Data.toJust <$> eSelection
 
     return PhotographersTab { .. }
-
-
-items :: WriteAttr Element [UI Element]
-items = mkWriteAttr $ \i x -> void $ do
-    return x # set children [] #+ i
