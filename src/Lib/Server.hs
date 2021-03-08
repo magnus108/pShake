@@ -840,6 +840,25 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let ggShoot = (\zip' trans ->  fmap (\z -> fmap (\t -> (t, Unsafe.fromJust (lookups' t trans ))) z ) zip') <$> bZipperShoot <*> shootingsTranslations''
 
         shootings       <- ShootingsTab.shootingsTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView ggShoot
+        --
+        -----------------------------------------------------------------------
+        sessionsTrans <- mapM (\c -> do
+                                translation <- ClientTranslation.translation2 bTranslations bMode (pure (show c)) (pure id)
+                                return (c, translation)
+                             ) $ [ Session.KindergartenGroup, Session.KindergartenSingle,Session.School]
+
+        let sessionsTranslations' = sessionsTrans <&> (\(k,(v,_)) -> (\v' -> (k,v')) <$> v)
+        -- (key, UI children)
+        let sessionsTranslations'' = sequenceA sessionsTranslations'
+
+        let bZipperSessions = Lens.view Session.unSessions <<$>> bSessions
+
+        let ggSession = (\zip' trans ->  fmap (\z -> fmap (\t -> (t, Unsafe.fromJust (lookups' t trans ))) z ) zip') <$> bZipperSessions <*> sessionsTranslations''
+
+        sessions       <- SessionsTab.sessionsTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView ggSession
+
+
+        -----------------------------------------------------------------------
 
 
         -----------------------------------------------------------------------
@@ -868,6 +887,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let kv = transTABS <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
         let kv2 = camerasTrans <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
         let kv3 = shootingsTrans <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
+        let kv4 = sessionsTrans <&> (\(_,(_,x)) -> x) <&> (\item -> (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd item) <@> (fst item))
         -----------------------------------------------------------------------
 
 
@@ -890,7 +910,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
-                                         ]<>kv<>kv2<>kv3)
+                                         ]<>kv<>kv2<>kv3<>kv4)
 
         let tTranslations = tidings bTranslations (Translation.Translations <$> eTranslation)
 
@@ -924,7 +944,6 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
             bTranslations
             bMode
             bDagsdatoBackup
-        sessions           <- SessionsTab.sessionsTab bTranslations bMode bSessions
         elemLocation           <- listBoxLocation bLocation
         elemGrades             <- listBoxGrades bGrades
         elemGradesInput        <- entryGradeInput bGrades
