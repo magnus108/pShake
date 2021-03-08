@@ -5,6 +5,7 @@ module Lib.Client.DumpTab
     )
 where
 
+import Lib.Client.Utils
 import qualified Lib.Model.Translation         as Translation
 import qualified Lib.Client.Translation.Translation
                                                as ClientTranslation
@@ -29,22 +30,23 @@ instance Widget DumpTab where
 dumpTab
     :: Behavior Translation.Translations
     -> Behavior ClientTranslation.Mode
+    -> Behavior [UI Element]
+    -> Behavior [UI Element]
+    -> Behavior [UI Element]
+    -> Behavior (Element -> [UI Element])
     -> Behavior (Data.Data String Dump.Dump)
     -> UI DumpTab
-dumpTab bTranslations bMode bDump = mdo
+dumpTab bTranslations bTransMode errorView loadingView notAskedView pickView bDump = mdo
+    _selector  <- UI.button #. "button" 
 
-    --fallback <- ClientTranslation.translation bTranslations (pure "pick")
-    let eFallback = UI.div --Translation._translation fallback
+    let bZipper = Lens.view Dump.unDump <<$>> bDump
 
-    let display   = pure $ \x -> UI.string x
-    let filepath = fmap (Lens.view Dump.unDump) <$> bDump
-    picker <- Picker.picker bTranslations
-                            bMode
-                            filepath
-                            display
-                            (pure $ \_ -> eFallback) --(element fallback))
+    let bDisplay = pure $ \filepath -> [element _selector # set children [] #+ [UI.string filepath, UI.span #. "icon" #+ [UI.mkElement "i" #. "far fa-file"]]]
+ 
+    let bErrorDisplay = (\p -> UI.div #+ (p _selector)) <$> pickView
+    let errorView' = (\vs ev -> ev : vs) <$> errorView <*> bErrorDisplay
 
-    _container <- UI.div #+ [element picker]
-    let _selection = Picker._selection picker
+    _container <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView' <*> bDisplay <*> bZipper)
+    let _selection = UI.click _selector
 
     return DumpTab { .. }

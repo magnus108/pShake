@@ -859,6 +859,15 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
 
         -----------------------------------------------------------------------
+        (pickView, _ePick) <- ClientTranslation.translation3  bTranslations bMode (pure "pick") (pure id)
+        elemDump       <- DumpTab.dumpTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView pickView bDump
+        -----------------------------------------------------------------------
+        elemDagsdato       <- DagsdatoTab.dagsdatoTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView pickView bDagsdato
+
+        -----------------------------------------------------------------------
+        elemDagsdatoBackup <- DagsdatoBackupTab.dagsdatoBackupTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView pickView bDagsdatoBackup
+        -----------------------------------------------------------------------
+        elemDoneshooting <- DoneshootingTab.doneshootingTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView pickView bDoneshooting
 
 
         -----------------------------------------------------------------------
@@ -910,6 +919,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let eTranslation = Unsafe.head <$> unions ([ (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransError ) <@> (fst $ _eTransError )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
+                                         , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _ePick ) <@> (fst $ _ePick )
                                          ]<>kv<>kv2<>kv3<>kv4)
 
         let tTranslations = tidings bTranslations (Translation.Translations <$> eTranslation)
@@ -937,13 +947,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
 
 
-        elemDump           <- DumpTab.dumpTab bTranslations bMode bDump
-        elemDagsdato <- DagsdatoTab.dagsdatoTab bTranslations bMode bDagsdato
-        doneshooting   <- DoneshootingTab.doneshootingTab bTranslations bMode bDoneshooting
-        elemDagsdatoBackup <- DagsdatoBackupTab.dagsdatoBackupTab
-            bTranslations
-            bMode
-            bDagsdatoBackup
+
         elemLocation           <- listBoxLocation bLocation
         elemGrades             <- listBoxGrades bGrades
         elemGradesInput        <- entryGradeInput bGrades
@@ -965,7 +969,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
                             elemDump
                             elemDagsdato
                             cameras
-                            doneshooting
+                            elemDoneshooting
                             elemDagsdatoBackup
                             sessions
                             elemLocation
@@ -1012,7 +1016,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let _eCameras        = CamerasTab._selection cameras
         let _eShootings = ShootingsTab._selection shootings
         let _eSessions = SessionsTab._selection sessions
-        let _eDoneshooting = DoneshootingTab._selection doneshooting
+        let _eDoneshooting = DoneshootingTab._selection elemDoneshooting
 
         let _eDownload = UI.click download
         let _eImporter = UI.click importer
@@ -1422,7 +1426,16 @@ setupStartMap = do
     let newStartMap11 = HashMap.insert key11 watcher11 newStartMap10
 
     let key12         = "dumpDir"
-    let watcher12     = Watchers.dumpDir
+    let watcher12     = Watchers.dumpDir `catchIOError` (\e -> do
+                           traceShowM e
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF)
+                       ) `E.catchError` (\e -> do
+                                    traceShowM e
+                                    return $ return () )
+
     let newStartMap12 = HashMap.insert key12 watcher12 newStartMap11
 
     let key13         = "build"
@@ -1939,13 +1952,19 @@ receiveMessages window = do
                 return ()
 
             Message.ReadDumpDir -> do
-                runIt12 window
+                runIt12 window `catchIOError` (\e -> do
+                           traceShowM e
+                           if isUserError e
+                               then E.throwError
+                                   (InternalError $ ServerError (show e))
+                               else E.throwError (InternalError $ WTF))
                     `E.catchError` (\e -> do
                                        hConfigDumpDir <-
                                            unHConfigDumpDir
                                                <$> grab @HConfigDumpDir
-                                       liftIO $ hConfigDumpDir $ Data.Failure
-                                           (show e)
+                                       liftIO $ hConfigDumpDir $ Data.Failure (show e)
+                                       hDumpDir <- unHDumpDir <$> grab @HDumpDir
+                                       liftIO $ hDumpDir $ Data.Failure (show e)
                                    )
 --------------------------------------------------------------------------------
             Message.StopBuild -> do

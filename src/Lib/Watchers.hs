@@ -284,9 +284,6 @@ dumpDir =
                     return ()
                 )
             return stop
-        `E.catchError` (\_ -> do
-                           return $ return ()
-                       )
 
 dagsdatoFile :: WithEnv r m => m FS.StopListening
 dagsdatoFile = do

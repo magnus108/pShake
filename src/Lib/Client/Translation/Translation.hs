@@ -5,6 +5,7 @@ module Lib.Client.Translation.Translation
     , toggle
     , translation
     , translation2
+    , translation3
     , TranslationEntry(..)
     )
 where
@@ -98,6 +99,30 @@ translation2 bTranslations bTransMode bKey bFormat = mdo
                     [_input trans, _close trans]
                 (Translating, Popup.Closed) -> [_open trans]
                 _                           -> [_text trans]
+
+    let keyValue = (_eInput trans, bKey)
+
+    return (bView, keyValue)
+
+
+translation3
+    :: Behavior Translation.Translations
+    -> Behavior Mode
+    -> Behavior String
+    -> Behavior (String -> String)
+    -> UI (Behavior (Element -> [UI Element]), (Event String, Behavior String))
+translation3 bTranslations bTransMode bKey bFormat = mdo
+
+    trans <- translation bTranslations bKey bFormat
+
+    let bView = do
+            transMode <- bTransMode
+            popupMode <- facts (_tPopup trans)
+            return $ \x -> case (transMode, popupMode) of
+                (Translating, Popup.Open) -> do
+                    fmap element $ [_input trans, _close trans]
+                (Translating, Popup.Closed) -> fmap element $ [_open trans]
+                _                           -> [element x # set children [_text trans]]
 
     let keyValue = (_eInput trans, bKey)
 
