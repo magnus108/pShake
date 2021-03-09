@@ -36,6 +36,7 @@ library
       Lib.Client.DoneshootingTab
       Lib.Client.DumpTab
       Lib.Client.Input.Text
+      Lib.Client.InsertPhotographeesTab
       Lib.Client.Main
       Lib.Client.PhotographersTab
       Lib.Client.Picker.Picker

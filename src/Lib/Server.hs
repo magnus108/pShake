@@ -24,6 +24,7 @@ import qualified Lib.Client.CamerasTab         as CamerasTab
 import qualified Lib.Client.ShootingsTab       as ShootingsTab
 import qualified Lib.Client.SessionsTab       as SessionsTab
 import qualified Lib.Client.Tabs       as ClientTabs
+import qualified Lib.Client.InsertPhotographeesTab       as InsertPhotographeesTab
 
 import qualified Foreign.JavaScript            as JavaScript
 import           Control.Monad.Except           ( MonadError )
@@ -727,6 +728,7 @@ data TabsBox a = TabsBox
     , _eDownload :: Event ()
     , _eImporter :: Event ()
     , _eTranlation :: Event Translation.Translations
+    , _eGrade :: Event Grade.Grades
     }
 
 instance Widget (TabsBox a) where
@@ -870,6 +872,9 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         -----------------------------------------------------------------------
         elemDoneshooting <- DoneshootingTab.doneshootingTab (facts tTranslations) (facts tMode)errorView loadingView notAskedView pickView bDoneshooting
 
+        -----------------------------------------------------------------------
+        -- HANDLE EVENTS
+        elemInsert <- InsertPhotographeesTab.insertPhotographeesTab (facts tTranslations) (facts tMode) errorView loadingView notAskedView bGrades
 
         -----------------------------------------------------------------------
         let tabsy = [ Tab.DumpTab
@@ -979,6 +984,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
                             elemPhotograheesInput
                             elemPhotograheesInput2
                             elemMainTab
+                            elemInsert
                   ) bTabs
 
 
@@ -1014,6 +1020,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         let _eDagsdato       = DagsdatoTab._selection elemDagsdato
         let _eDagsdatoBackup = DagsdatoBackupTab._selection elemDagsdatoBackup
         let _ePhotographers  = PhotographersTab._selection photographers
+        let _eGrade = InsertPhotographeesTab._selection elemInsert
         let _eCameras        = CamerasTab._selection cameras
         let _eShootings = ShootingsTab._selection shootings
         let _eSessions = SessionsTab._selection sessions
@@ -1037,7 +1044,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
 tabItems :: (Show a, Widget w1, Widget w2, Widget w3, Widget w4,
                    Widget w5, Widget w6, Widget w7, Widget w8, Widget w9, Widget w10,
-                   Widget w11, Widget w12, Widget w13, Widget w14) =>
+                   Widget w11, Widget w12, Widget w13, Widget w14,Widget w15) =>
                   w12
                   -> w2
                   -> w8
@@ -1052,8 +1059,9 @@ tabItems :: (Show a, Widget w1, Widget w2, Widget w3, Widget w4,
                   -> w13
                   -> w14
                   -> w1
+                  -> w15
                   -> WriteAttr Element (Data.Data a Tab.Tabs)
-tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab
+tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBackup sessions location grades gradesInput photographeesInput photographeesInput2 mainTab photographees
     = mkWriteAttr $ \i x -> void $ do
         case i of
             Data.NotAsked  -> return x # set text "Not Asked"
@@ -1105,6 +1113,7 @@ tabItems photographers shootings dump dagsdato cameras doneshooting dagsdatoBack
                             #  set children []
                             #+ [ element photographeesInput
                                , element photographeesInput2
+                               , element photographees
                                ]
 
 
@@ -1319,6 +1328,10 @@ setup env@Env {..} win = mdo
     _ <- onEvent eCameras' $ \item -> do
         liftIO $ void $ Chan.writeChan (unInChan inChan)
                                        (Message.WriteCameras item)
+
+    _ <- onEvent (_eGrade elem3) $ \item -> do
+        liftIO $ void $ Chan.writeChan (unInChan inChan)
+                                       (Message.WriteGrades item)
 
     void $ UI.getBody win #+ [element elem3]
 
@@ -2240,7 +2253,12 @@ runIt7
 runIt7 window doneshootingFile mDoneshootingFile = do
     doneshooting     <- getDoneshooting doneshootingFile
     hDoneshootingDir <- unHDoneshootingDir <$> grab @HDoneshootingDir
-    liftIO $ hDoneshootingDir $ Data.Data doneshooting
+    let fp = Lens.view Doneshooting.unDoneshooting doneshooting
+    b <- liftIO $ SD.doesDirectoryExist fp
+    if (b) then
+        liftIO $ hDoneshootingDir $ Data.Data doneshooting
+    else
+        liftIO $ hDoneshootingDir $ Data.Failure "does not exist"
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
     putMVar mDoneshootingFile doneshootingFile
 
@@ -2265,7 +2283,12 @@ runIt8
 runIt8 window dagsdatoBackupFile mDagsdatoBackupFile = do
     dagsdatoBackup     <- getDagsdatoBackup dagsdatoBackupFile
     hDagsdatoBackupDir <- unHDagsdatoBackupDir <$> grab @HDagsdatoBackupDir
-    liftIO $ hDagsdatoBackupDir $ Data.Data dagsdatoBackup
+    let fp = Lens.view DagsdatoBackup.unDagsdatoBackup dagsdatoBackup
+    b <- liftIO $ SD.doesDirectoryExist fp
+    if (b) then
+        liftIO $ hDagsdatoBackupDir $ Data.Data dagsdatoBackup
+    else
+        liftIO $ hDagsdatoBackupDir $ Data.Failure "does not exist"
     liftIO $ runUI window flushCallBuffer -- make sure that JavaScript functions are executed
     putMVar mDagsdatoBackupFile dagsdatoBackupFile
 
