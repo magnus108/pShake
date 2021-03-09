@@ -803,6 +803,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
         (errorView, _eTransError) <- ClientTranslation.translation2 bTranslations bMode (pure "error") (pure (\v ->  format v dave)) --(\v -> format v "dave"))
         (loadingView, _eTransLoading) <- ClientTranslation.translation2 bTranslations bMode (pure "loading") (pure id)
         (notAskedView, _eTransNotAsked) <- ClientTranslation.translation2 bTranslations bMode (pure "notAsked") (pure id)
+        (insertView, _eTransInsert) <- ClientTranslation.translation3 bTranslations bMode (pure "insert") (pure id)
 
         photographers <- PhotographersTab.photographersTab errorView loadingView notAskedView bPhotographers
 
@@ -874,7 +875,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
 
         -----------------------------------------------------------------------
         -- HANDLE EVENTS
-        elemInsert <- InsertPhotographeesTab.insertPhotographeesTab (facts tTranslations) (facts tMode) errorView loadingView notAskedView bGrades
+        elemInsert <- InsertPhotographeesTab.insertPhotographeesTab (facts tTranslations) (facts tMode) errorView loadingView notAskedView insertView bGrades
 
         -----------------------------------------------------------------------
         let tabsy = [ Tab.DumpTab
@@ -926,6 +927,7 @@ tabsBox bTranslations bTabs bPhotographers bShootings bDump bDagsdato bCameras b
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransLoading ) <@> (fst $ _eTransLoading )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransNotAsked ) <@> (fst $ _eTransNotAsked )
                                          , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _ePick ) <@> (fst $ _ePick )
+                                         , (\m k v -> HashMap.insert k v m) <$> (Lens.view Translation.unTranslation <$> bTranslations) <*> (snd $ _eTransInsert ) <@> (fst $ _eTransInsert )
                                          ]<>kv<>kv2<>kv3<>kv4)
 
         let tTranslations = tidings bTranslations (Translation.Translations <$> eTranslation)

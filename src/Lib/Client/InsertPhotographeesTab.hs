@@ -31,7 +31,8 @@ import qualified Graphics.UI.Threepenny        as UI
 
 data InsertPhotographeesTab = InsertPhotographeesTab
     { _container :: Element
-    , _selection :: Event Grade.Grades
+    , _selection :: !(Event Grade.Grades)
+    , _gradeInsert :: !(Event Grade.Grades)
     }
 
 instance Widget InsertPhotographeesTab where
@@ -54,9 +55,10 @@ insertPhotographeesTab
     -> Behavior [UI Element]
     -> Behavior [UI Element]
     -> Behavior [UI Element]
+    -> Behavior (Element -> [UI Element])
     -> Behavior (Data.Data String Grade.Grades)
     -> UI InsertPhotographeesTab
-insertPhotographeesTab bTranslations bTransMode errorView loadingView notAskedView bGrades = mdo
+insertPhotographeesTab bTranslations bTransMode errorView loadingView notAskedView insertView bGrades = mdo
 
 
     (eSelection, hSelection) <- liftIO $ newEvent
@@ -84,7 +86,8 @@ insertPhotographeesTab bTranslations bTransMode errorView loadingView notAskedVi
                 return display
 
 
-    let bDisplayClosed = pure $ \grades -> do
+    _insertGrade <- UI.button #. "button"
+    let bDisplayClosed = insertView <&> \gg grades -> do
                     text' <- UI.span # set text (extract grades ^. Grade.gradeId)
                     icon <-
                         UI.span #. "icon" #+ [UI.mkElement "i" #. "fas fa-caret-down"]
@@ -92,15 +95,21 @@ insertPhotographeesTab bTranslations bTransMode errorView loadingView notAskedVi
                         #. "button"
                         #+ fmap element [text', icon]
 
+                    display'' <- UI.div #+ (element display : gg _insertGrade)
+
                     UI.on UI.click display $ \_ -> do
                         liftIO $ hPopup ()
 
-                    return display
+                    return display''
+
+
+
+
 
     let finalDisplay = do
             displayOpen <- bDisplayOpen
-            displayClosed <- bDisplayClosed
             dropMode <- bDropMode
+            displayClosed <- bDisplayClosed
             return $ \zipper ->
                 case dropMode of
                     Open -> do
@@ -109,16 +118,30 @@ insertPhotographeesTab bTranslations bTransMode errorView loadingView notAskedVi
                         [displayClosed zipper]
 
 
+    
+    let _gradeInsert = filterJust $ mkNewGrade <$> (Data.toJust <$> bGrades) <@  UI.click _insertGrade
+
     let _selection = fmap Grade.Grades $ filterJust $ Data.toJust <$> eSelection
-
-
-
-
-
-    insertGrade <- UI.button
-    --changeGrade <- Text.entry 
-
 
     _container <- UI.div # sink items (Data.data'' <$> loadingView <*> notAskedView <*> errorView <*> finalDisplay <*> bZipper)
 
     return InsertPhotographeesTab { .. }
+
+
+mkNewGrade :: Maybe Grade.Grades -> Maybe Grade.Grades
+mkNewGrade grades' = case grades' of
+    Nothing -> Nothing
+    Just zs ->
+        let (ListZipper.ListZipper xs x ys) = Grade._unGrades zs
+        in  Just $ Grade.Grades $ ListZipper.ListZipper
+                xs
+                (Grade.Grade
+                    ""
+                    (Grade.Photographees $ ListZipper.ListZipper
+                        []
+                        (Grade.Photographee "" "" "")
+                        []
+                    )
+                )
+                (x : ys)
+
